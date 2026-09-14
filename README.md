@@ -1,14 +1,25 @@
 # nidus-pilot
 
-Slices **P01–P03** of `Nidus_Website_Development_Plan.md`, built against the
-document pack in `../Nidus_Complete_Document_Pack/`. Nothing beyond P03 exists.
+Slices **P01–P06** of `Nidus_Website_Development_Plan.md`, built against the
+document pack in `../Nidus_Complete_Document_Pack/`. P07–P09 do not exist.
 
 ```bash
 npm install
-npm test     # node:test — 34 assertions over the contracts, gates and both rankers
+npm test              # client domain: 34 assertions, no database needed
 npm run dev
 npm run build
+
+# Server (P04-P06). Needs PostgreSQL 16+.
+cp .env.example .env.local        # then fill DATABASE_URL
+npm run migrate
+npm run server                    # binds 127.0.0.1 by default, on purpose
+TEST_DATABASE_URL=... npm run test:server   # 32 integration assertions
+npm run typecheck:server
 ```
+
+The database is PostgreSQL, not the Cloudflare D1 in the original plan. The
+reasoning and its consequences are in
+`../Nidus_Complete_Document_Pack/Nidus_Decision_Record_001_PostgreSQL.md`.
 
 ## What is here
 
@@ -59,17 +70,58 @@ for limits and milestones, 17px body at 1.5 line-height, 44px touch targets,
 something, behind progressive disclosure, with every field confirmed by them.
 Verified at 320, 375, 768, 1024 and 1440px with no horizontal overflow.
 
+**P04 — consent and the saved journey** (`server/`)
+
+Nothing is stored until the reader consents, and `GET /api/consent` discloses the
+exact field list, the retention period and the honest processing statement first.
+A pseudonymous 32-byte credential goes into an HttpOnly, Secure, SameSite=Strict
+cookie; only its SHA-256 hash is stored, and a test asserts the credential itself
+never appears in the database. Every repository function takes `readerId` first
+and filters on it — there is no query in `server/db/repo.ts` that can return a row
+without a reader predicate. Mutations need a double-submit CSRF token and an
+allowed Origin; bodies are capped at 16 kB; consent, writes and operator routes
+are rate-limited separately. The no-save path is tested: every saving route
+refuses without consent, and nothing is written.
+
+**P05 — sessions and the adjustable ladder**
+
+A check-in is a row with `UNIQUE (reader_id, local_day)`, so a duplicate or a
+burst of concurrent taps produces one day, not several — the constraint decides,
+not application code. The day comes from the reader's own timezone, not the
+server's. A changed weekly goal inserts a new row with its own `effective_from`;
+earlier rows, and therefore the reader's history, are never rewritten. The ladder
+endpoint reports "2 of your 3 reading days this week", labels everything
+self-reported, and returns no streak.
+
+**P06 — feedback and adaptation**
+
+Structured feedback is kept whether it is positive or negative. Each kind gets its
+own response, from the adaptation table in the research report: *too busy*
+shortens the plan with no catch-up debt, *boring* asks which kind of boring it was
+rather than guessing, *useful* proposes nothing at all. Every adaptation records
+`before_state`, `after_state`, the reason and the ranker version, and stays
+`proposed` until the reader accepts or declines — a decline is kept too. Whether
+a change actually helped is a separate field that starts null, and unknown stays
+unknown rather than counting as success.
+
+Also: `GET /api/export` returns everything held about the reader, `DELETE /api/me`
+removes it in one cascading statement and says plainly that off-machine backups
+are separate, `purgeExpired` enforces the 30-day retention, and the operator
+endpoints need their own bearer token and return counts only — there is no route
+anywhere that lists every reader's feedback.
+
 ## What is deliberately not here
 
-- **P04–P09.** No persistence, consent record, cookie, saved journey, session
-  ladder, feedback capture, adaptation, operator view or retention job. Reload and
-  the page forgets everything. This must not be put in front of participants as a
-  feedback-collecting pilot — that needs P04–P08.
+- **P07–P09.** No operator review UI, no release verification pass, no field
+  test. The API has counts and a purge; a reviewed operator surface is P07.
+- **The client is not wired to the server yet.** `src/App.tsx` still saves
+  nothing. P04–P06 is the backend and its tests; connecting the two is the next
+  piece of work.
 - **My Shelf, My Journey, Today, and the bottom navigation** from the wireframe.
   They need persistence. A navigation bar pointing at screens that do not exist
   would be the kind of promise the documents keep warning about.
-- **Loading, retry and request-pending states.** They belong to a network call.
-  Ranking is a synchronous pure function today, so a spinner would be theatre.
+- **Loading, retry and request-pending states** in the client. They belong to a
+  network call, and the client does not make one yet.
 - **Mood, desired experience, carousels, trend badges.** `Nidus_Moods_Trends_and_Carousels.md`
   marks them as a proposed extension, not implemented, and the India trend data
   it needs is unverified.
@@ -94,6 +146,11 @@ Verified at 320, 375, 768, 1024 and 1440px with no horizontal overflow.
 
 ## Next
 
-P04, consent and saved journey. Read `../Nidus_00_Start_Here.md`, then
-`../Nidus_Complete_Document_Pack/Nidus_System_Design_v1.md` for the security gates
-each remaining slice has to clear.
+Wire the client to the API, then P07 (operator review and retention) and P08
+(release verification). Read `../Nidus_00_Start_Here.md` first, then
+`Nidus_System_Design_v1.md` for the security gates each remaining slice must
+clear and `Nidus_Deployment_Strategy_v1.md` for where this may and may not run.
+
+Before any participant sees this: verify the catalogue editions against a real
+bibliographic source, run the deletion and retention checks against the actual
+database, and perform a restore from backup rather than assuming one works.

@@ -8,16 +8,27 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/*.test.ts",
+    "test:server": "node --test server/*.test.ts",
+    "test:all": "npm run test && npm run test:server",
+    "migrate": "node server/db/migrate.ts",
+    "server": "node server/index.ts",
+    "typecheck:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "cookie-parser": "^1.4.7",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "postgres": "^3.4.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
