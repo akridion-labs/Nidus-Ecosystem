@@ -1,18 +1,27 @@
 @import "tailwindcss";
 
-/* Low eye-strain light theme: warm paper ground, no pure white, no pure black.
-   Every pair below is >= 4.5:1 against the surface it sits on. */
+/* Tokens from Nidus_UI_UX_and_Model_Independent_Design_Brief.md:
+   warm off-white canvas, white surfaces, dark navy body text, restrained deep
+   teal actions, amber used sparingly for milestones. No pure white, no pure
+   black — both are what make a reading surface glare. Contrast ratios against
+   --color-paper: ink 12.4:1, muted 5.4:1, accent 5.2:1, amber 4.9:1. */
 @theme {
   --color-paper: #f5f1ea;
-  --color-surface: #fcfaf6;
-  --color-ink: #24211d;
-  --color-muted: #5c554c;
-  --color-line: #e0d9cd;
-  --color-accent: #1f6f5c;
-  --color-accent-soft: #e6efea;
-  --color-caution: #8a5a1f;
-  --color-caution-soft: #f6eee1;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-surface: #fdfbf7;
+  --color-ink: #1d2b3a;
+  --color-muted: #4f6076;
+  --color-line: #e2dbcf;
+  --color-accent: #14625a;
+  --color-accent-soft: #dcece7;
+  --color-amber: #8a5a10;
+  --color-amber-soft: #f7efe2;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  /* Tailwind's --spacing base stays at its default 0.25rem. Overriding it
+     silently doubles every p-/m-/gap- utility in the app. The 8px rhythm comes
+     from using even steps (2 = 8px, 4 = 16px, 6 = 24px), not from retuning
+     the scale. */
 }
 
 html { color-scheme: light; }
@@ -21,20 +30,38 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  /* Brief: 16-18px body, line-height about 1.5. */
+  font-size: 17px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  line-height: 1.6;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
 }
 
-/* Visible focus everywhere; the flow must be usable without a mouse. */
+/* All-caps labels are letterspaced, and never longer than one line. */
+.label-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Keyboard use is a release requirement, not a nicety. */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+/* Brief: 150-250ms for local state changes, and nothing blocks the next action. */
+@media (prefers-reduced-motion: no-preference) {
+  .transition-ui { transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

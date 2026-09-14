@@ -1,4 +1,4 @@
 import { loadCatalogue } from '../domain/catalogue.ts'
-import { seedRows } from './catalogue.seed.ts'
+import { seedWorks, seedEditions, seedProfiles } from './catalogue.seed.ts'
 
-export const catalogue = loadCatalogue(seedRows)
+export const catalogue = loadCatalogue(seedWorks, seedEditions, seedProfiles)
