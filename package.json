@@ -13,7 +13,8 @@
     "test:all": "npm run test && npm run test:server",
     "migrate": "node server/db/migrate.ts",
     "server": "node server/index.ts",
-    "typecheck:server": "tsc -p tsconfig.server.json"
+    "typecheck:server": "tsc -p tsconfig.server.json",
+    "bench": "node tools/ranker-bench.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
