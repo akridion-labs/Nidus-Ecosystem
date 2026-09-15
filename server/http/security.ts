@@ -65,15 +65,39 @@ export function csrfGuard(allowedOrigins: string[], exempt: string[] = []) {
 }
 
 /**
- * ponytail: in-process fixed-window counter, per IP and route. Enough for a
- * 20-30 person pilot on one instance. Move to a shared store the day there is
- * more than one instance, or it counts each instance separately.
+ * ponytail: in-process fixed-window counter. Enough for a 20-30 person pilot on
+ * one instance. Move to a shared store the day there is more than one instance,
+ * or it counts each instance separately.
+ *
+ * The map is swept and hard-capped. An unbounded map keyed on anything a client
+ * influences is a memory-exhaustion bug wearing a rate limiter's clothes.
  */
-export function rateLimit({ windowMs, max }: { windowMs: number; max: number }) {
+const MAX_TRACKED_KEYS = 10_000
+
+export function rateLimit({
+  windowMs, max, keyBy,
+}: {
+  windowMs: number
+  max: number
+  /** Defaults to the caller's IP. Pass a reader-scoped key to limit per account. */
+  keyBy?: (req: Request) => string
+}) {
   const hits = new Map<string, { count: number; resetAt: number }>()
+  let lastSweep = 0
+
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = `${req.ip}:${req.method}:${req.path}`
     const now = Date.now()
+
+    if (now - lastSweep > windowMs) {
+      for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k)
+      lastSweep = now
+      // Still too many distinct keys after sweeping means someone is generating
+      // them. Drop everything rather than grow without bound; the worst case is
+      // one forgiving window, not an out-of-memory process.
+      if (hits.size > MAX_TRACKED_KEYS) hits.clear()
+    }
+
+    const key = `${keyBy ? keyBy(req) : req.ip}:${req.method}:${req.path}`
     const entry = hits.get(key)
     if (!entry || entry.resetAt <= now) {
       hits.set(key, { count: 1, resetAt: now + windowMs })
@@ -88,11 +112,28 @@ export function rateLimit({ windowMs, max }: { windowMs: number; max: number }) 
   }
 }
 
-/** Minimal hardening headers. A CDN or proxy may add more in front. */
-export function securityHeaders(_req: Request, res: Response, next: NextFunction) {
+/** Constant-time bearer-token check. `!==` on a secret leaks its prefix by timing. */
+export function bearerMatches(header: string | undefined, token: string): boolean {
+  if (!header || !token) return false
+  const expected = `Bearer ${token}`
+  const a = Buffer.from(header)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
+
+/**
+ * Minimal hardening headers. A CDN or proxy may add more in front.
+ * HSTS is only sent when the connection is actually TLS — sending it over plain
+ * HTTP in development pins the browser to https://localhost and wastes an hour.
+ */
+export function securityHeaders(req: Request, res: Response, next: NextFunction) {
   res.set('X-Content-Type-Options', 'nosniff')
   res.set('Referrer-Policy', 'no-referrer')
   res.set('X-Frame-Options', 'DENY')
   res.set('Cache-Control', 'no-store')
+  // This is a JSON API; nothing here should ever be rendered as a document.
+  res.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
+  if (req.secure) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   next()
 }

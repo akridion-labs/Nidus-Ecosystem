@@ -9,6 +9,22 @@ import type { Sql } from './client.ts'
 
 export type ReaderId = string
 
+/**
+ * Hard per-reader row caps. The in-memory rate limiter resets when the process
+ * restarts; these do not. A pilot reader has no legitimate reason to exceed
+ * them, and without them one valid cookie can fill the disk.
+ */
+export const CAPS = { journeys: 500, feedback: 1000 } as const
+
+export class CapExceeded extends Error {
+  table: keyof typeof CAPS
+  constructor(table: keyof typeof CAPS) {
+    super(`per-reader cap reached for ${table}`)
+    this.name = 'CapExceeded'
+    this.table = table
+  }
+}
+
 /* ---------------- credentials ---------------- */
 
 /** 32 random bytes. The plaintext goes in the cookie and is never stored. */
@@ -77,13 +93,17 @@ export async function saveJourney(
     rankerVersion: string; catalogueVersion: string
   },
 ) {
-  const [row] = await sql<{ id: string }[]>`
+  // One statement: the cap is checked and the row inserted together, so a
+  // concurrent request cannot slip past a separately-read count.
+  const rows = await sql<{ id: string }[]>`
     INSERT INTO journeys (reader_id, work_id, edition_id, mode, purpose, language,
                           ranker_version, catalogue_version)
-    VALUES (${readerId}, ${j.workId}, ${j.editionId}, ${j.mode}, ${j.purpose},
-            ${j.language}, ${j.rankerVersion}, ${j.catalogueVersion})
+    SELECT ${readerId}, ${j.workId}, ${j.editionId}, ${j.mode}, ${j.purpose},
+           ${j.language}, ${j.rankerVersion}, ${j.catalogueVersion}
+    WHERE (SELECT count(*) FROM journeys WHERE reader_id = ${readerId}) < ${CAPS.journeys}
     RETURNING id`
-  return row.id
+  if (rows.length === 0) throw new CapExceeded('journeys')
+  return rows[0].id
 }
 
 export async function journeys(sql: Sql, readerId: ReaderId) {
@@ -166,11 +186,13 @@ export async function addFeedback(
   readerId: ReaderId,
   f: { kind: string; note?: string; journeyId?: string | null },
 ) {
-  const [row] = await sql<{ id: string }[]>`
+  const rows = await sql<{ id: string }[]>`
     INSERT INTO feedback (reader_id, journey_id, kind, note)
-    VALUES (${readerId}, ${f.journeyId ?? null}, ${f.kind}, ${f.note ?? ''})
+    SELECT ${readerId}, ${f.journeyId ?? null}, ${f.kind}, ${f.note ?? ''}
+    WHERE (SELECT count(*) FROM feedback WHERE reader_id = ${readerId}) < ${CAPS.feedback}
     RETURNING id`
-  return row.id
+  if (rows.length === 0) throw new CapExceeded('feedback')
+  return rows[0].id
 }
 
 export async function feedbackFor(sql: Sql, readerId: ReaderId) {

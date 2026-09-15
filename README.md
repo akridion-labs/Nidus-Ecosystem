@@ -5,7 +5,7 @@ document pack in `../Nidus_Complete_Document_Pack/`. P07–P09 do not exist.
 
 ```bash
 npm install
-npm test              # client domain: 34 assertions, no database needed
+npm test              # client domain: 38 assertions, no database needed
 npm run dev
 npm run build
 
@@ -13,8 +13,9 @@ npm run build
 cp .env.example .env.local        # then fill DATABASE_URL
 npm run migrate
 npm run server                    # binds 127.0.0.1 by default, on purpose
-TEST_DATABASE_URL=... npm run test:server   # 32 integration assertions
+TEST_DATABASE_URL=... npm run test:server   # 55 assertions: behaviour, ACID, security
 npm run typecheck:server
+npm run bench                     # ranker latency at 14 / 1k / 10k / 50k works
 ```
 
 The database is PostgreSQL, not the Cloudflare D1 in the original plan. The
@@ -128,6 +129,17 @@ anywhere that lists every reader's feedback.
 - **Three.js, Lenis, confetti, the client-side request cap.** The design brief
   rules out heavy 3D and decorative animation libraries on a reading surface, and
   there is no request to cap because the client makes no requests.
+
+## How it is checked
+
+| Suite | What it proves |
+|---|---|
+| `tests/domain.test.ts` | Named behaviours: gates, weights, branch routing, explanation fields |
+| `tests/invariants.test.ts` | 3,000 generated briefs. Every result passed the gates; every score is 0–100 and equals the sum of its own components; no component exceeds its ceiling; neither branch's terms leak into the other; ranking is deterministic. This suite found a real scoring bug — see `RANKER_VERSION` 0.2.1 |
+| `server/pilot.test.ts` | P04–P06 behaviour end to end against real PostgreSQL |
+| `server/acid.test.ts` | Atomicity, consistency and isolation demonstrated, not asserted in prose. Durability is checked as configuration and documented as a restore nobody has performed yet |
+| `server/security.test.ts` | Regression tests for the four findings in `Nidus_Security_And_Correctness_Review_v1.md`, each of which failed before its fix |
+| `tools/ranker-bench.ts` | Latency, so "is it fast enough" is answered with a number |
 
 ## Known ceilings
 

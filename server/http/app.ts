@@ -4,8 +4,8 @@ import type { Request, Response, NextFunction } from 'express'
 import type { Sql } from '../db/client.ts'
 import * as repo from '../db/repo.ts'
 import {
-  READER_COOKIE, CSRF_COOKIE, cookieOptions, csrfCookieOptions, csrfGuard,
-  newCsrfToken, rateLimit, securityHeaders,
+  READER_COOKIE, CSRF_COOKIE, bearerMatches, cookieOptions, csrfCookieOptions,
+  csrfGuard, newCsrfToken, rateLimit, securityHeaders,
 } from './security.ts'
 import {
   AdaptationDecision, AdaptationOutcome, CheckInRequest, CONSENT_VERSION,
@@ -23,6 +23,13 @@ export type AppOptions = {
   rankerVersion?: string
   /** Production defaults are deliberately tight; tests raise them explicitly. */
   limits?: { consentPerMinute?: number; writesPerMinute?: number; operatorPerMinute?: number }
+  /**
+   * Number of trusted reverse proxies in front of this process. **Default 0.**
+   * Setting this when nothing trustworthy sits in front lets any client forge
+   * X-Forwarded-For, which makes req.ip attacker-controlled and every IP-keyed
+   * rate limit meaningless. Set it only to the real hop count.
+   */
+  trustProxyHops?: number
 }
 
 declare global {
@@ -38,7 +45,16 @@ export function createApp(opts: AppOptions) {
   const operatorMax = opts.limits?.operatorPerMinute ?? 10
   const app = express()
 
-  app.set('trust proxy', 1)
+  app.set('trust proxy', opts.trustProxyHops ?? 0)
+
+  // Fail loudly at boot rather than mysteriously at the first browser request.
+  if ((opts.allowedOrigins ?? []).length === 0) {
+    console.warn(
+      '[nidus] ALLOWED_ORIGINS is empty: every browser mutation carrying an Origin ' +
+      'header will be refused with 403. This is fail-closed, not a crash.',
+    )
+  }
+
   app.use(securityHeaders)
   // Payload cap. A reading pilot has no reason to accept a large body.
   app.use(express.json({ limit: '16kb' }))
@@ -54,6 +70,16 @@ export function createApp(opts: AppOptions) {
     req.readerId = reader.id
     next()
   }
+
+  /**
+   * Writes are limited per READER as well as per IP. An IP limit alone does not
+   * stop one consenting reader (or one script holding a valid cookie) from
+   * filling the database, and a reader behind CGNAT shares an IP with thousands.
+   */
+  const perReaderWrites = rateLimit({
+    windowMs: 60_000, max: writeMax,
+    keyBy: (req) => req.readerId ?? req.ip ?? 'unknown',
+  })
 
   const wrap = (fn: (req: Request, res: Response) => Promise<unknown>) =>
     (req: Request, res: Response, next: NextFunction) => { fn(req, res).catch(next) }
@@ -107,7 +133,7 @@ export function createApp(opts: AppOptions) {
     res.json(await repo.exportReader(sql, req.readerId!))
   }))
 
-  app.post('/api/journeys', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), wrap(async (req, res) => {
+  app.post('/api/journeys', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {
     const parsed = JourneyRequest.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'invalid', issues: parsed.error.issues })
     res.status(201).json({ id: await repo.saveJourney(sql, req.readerId!, parsed.data) })
@@ -115,7 +141,7 @@ export function createApp(opts: AppOptions) {
 
   /* ---------- rhythm ---------- */
 
-  app.post('/api/goal', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), wrap(async (req, res) => {
+  app.post('/api/goal', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {
     const parsed = GoalRequest.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'invalid', issues: parsed.error.issues })
     const effectiveFrom = parsed.data.effectiveFrom ?? (await repo.localDay(sql, req.readerId!))
@@ -123,7 +149,7 @@ export function createApp(opts: AppOptions) {
     res.status(201).json({ id, effectiveFrom })
   }))
 
-  app.post('/api/sessions', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), wrap(async (req, res) => {
+  app.post('/api/sessions', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {
     const parsed = CheckInRequest.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'invalid', issues: parsed.error.issues })
     const day = await repo.localDay(sql, req.readerId!)
@@ -152,7 +178,7 @@ export function createApp(opts: AppOptions) {
 
   /* ---------- feedback and adaptation ---------- */
 
-  app.post('/api/feedback', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), wrap(async (req, res) => {
+  app.post('/api/feedback', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {
     const parsed = FeedbackRequest.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'invalid', issues: parsed.error.issues })
 
@@ -215,7 +241,7 @@ export function createApp(opts: AppOptions) {
 
   app.get('/api/operator/summary', rateLimit({ windowMs: 60_000, max: operatorMax }), wrap(async (req, res) => {
     if (!opts.operatorToken) return res.status(404).json({ error: 'not_enabled' })
-    if (req.get('authorization') !== `Bearer ${opts.operatorToken}`) {
+    if (!bearerMatches(req.get('authorization'), opts.operatorToken)) {
       return res.status(401).json({ error: 'unauthorized' })
     }
     res.json(await repo.operatorCounts(sql))
@@ -223,7 +249,7 @@ export function createApp(opts: AppOptions) {
 
   app.post('/api/operator/purge', rateLimit({ windowMs: 60_000, max: operatorMax }), wrap(async (req, res) => {
     if (!opts.operatorToken) return res.status(404).json({ error: 'not_enabled' })
-    if (req.get('authorization') !== `Bearer ${opts.operatorToken}`) {
+    if (!bearerMatches(req.get('authorization'), opts.operatorToken)) {
       return res.status(401).json({ error: 'unauthorized' })
     }
     res.json({ purged: await repo.purgeExpired(sql) })
@@ -236,6 +262,9 @@ export function createApp(opts: AppOptions) {
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     // Body-parser errors carry their own status. A 16 kB cap that answers 500
     // looks like a bug to the client instead of a limit.
+    if (err instanceof repo.CapExceeded) {
+      return res.status(429).json({ error: 'reader_cap_reached', detail: err.message })
+    }
     const status = (err as { status?: number; statusCode?: number })?.status
       ?? (err as { statusCode?: number })?.statusCode
     if (typeof status === 'number' && status >= 400 && status < 500) {

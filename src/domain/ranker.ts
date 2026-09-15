@@ -11,7 +11,7 @@ import { PUBLIC_DOMAIN_WORKS } from '../data/catalogue.seed.ts'
  * and the catalogue version, so a changed recommendation can be explained
  * later instead of argued about.
  */
-export const RANKER_VERSION = 'nidus-ranker-0.2.0-pilot'
+export const RANKER_VERSION = 'nidus-ranker-0.2.1-pilot'
 
 /* ================================================================== *
  * 1. Eligibility — a binary gate that runs before any scoring.
@@ -99,8 +99,12 @@ function timeAndDifficultyFit(item: CatalogueItem, brief: ReadingBrief): number 
   const fits = item.profile.typicalSessionMinutes <= brief.sessionMinutes
   const time = fits ? 1 : Math.max(0, brief.sessionMinutes / item.profile.typicalSessionMinutes)
   // Enjoy mode should not hand someone a demanding book at the end of a day.
+  // Clamped to 1: an easy book is a full match, never a bonus. Without the
+  // upper clamp a difficulty-1 book scored 1.33 here and pushed the component
+  // past its own ceiling, so the displayed breakdown no longer summed to the
+  // displayed score. Found by tests/invariants.test.ts.
   const comfort = brief.mode === 'enjoy'
-    ? Math.max(0, 1 - (item.profile.conceptualDifficulty - 2) / 3)
+    ? clamp(1 - (item.profile.conceptualDifficulty - 2) / 3, 0, 1)
     : 1
   return (time + comfort) / 2
 }
