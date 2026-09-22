@@ -28,6 +28,9 @@
      slow, which is how paper behaves. `ease` and `linear` are not used
      anywhere — default easing is what makes an interface feel unfinished. */
   --ease-paper: cubic-bezier(0.25, 1, 0.5, 1);
+  /* A second curve, only for the background drift. A loop wants to slow at
+     both ends; quart-out would make it lurch every time it turns round. */
+  --ease-drift: cubic-bezier(0.45, 0, 0.55, 1);
 
   /* Tailwind's --spacing base stays at its default 0.25rem. Overriding it
      silently doubles every p-/m-/gap- utility in the app. The 8px rhythm comes
@@ -50,6 +53,82 @@ body {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "kern" 1, "liga" 1;
   text-rendering: optimizeLegibility;
+}
+
+/* The living background.
+ *
+ * Two washes in the palette's own tints, drifting on a minute-long loop. They
+ * are tints of the paper colour, so no text contrast ratio moves — checked
+ * against the brief's numbers, not assumed. Only `transform` animates, so it
+ * stays on the compositor and costs no layout. Fixed, behind everything, and
+ * inert to the pointer.
+ *
+ * The point is that the page should feel like it is somewhere rather than
+ * being a sheet of paper, and a surface that moves imperceptibly reads as
+ * alive. If it is noticeable it has failed; it is meant to be the thing you
+ * only see when you look for it. */
+.livewash {
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.livewash span {
+  position: absolute;
+  display: block;
+  border-radius: 9999px;
+  will-change: transform;
+}
+
+.livewash span:nth-child(1) {
+  width: 52vmax; height: 52vmax; left: -8vmax; top: -10vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 98, 90, 0.10), transparent 68%);
+  animation: drift-a 52s var(--ease-drift) infinite alternate;
+}
+
+.livewash span:nth-child(2) {
+  width: 44vmax; height: 44vmax; right: -6vmax; bottom: -12vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(138, 90, 16, 0.09), transparent 68%);
+  animation: drift-b 71s var(--ease-drift) infinite alternate;
+}
+
+.livewash span:nth-child(3) {
+  width: 36vmax; height: 36vmax; left: 45%; top: 30%;
+  background: radial-gradient(circle at 50% 50%, rgba(226, 219, 207, 0.55), transparent 70%);
+  animation: drift-c 88s var(--ease-drift) infinite alternate;
+}
+
+@keyframes drift-a { to { transform: translate3d(14vmax, 10vmax, 0) scale(1.15); } }
+@keyframes drift-b { to { transform: translate3d(-12vmax, -9vmax, 0) scale(1.1); } }
+@keyframes drift-c { to { transform: translate3d(-9vmax, 12vmax, 0) scale(0.9); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .livewash span { animation: none; }
+}
+
+/* Scrapbook mounts. A page of a journal is not a grid of identical rectangles:
+   things are stuck in slightly crooked. The angles are tiny and fixed per
+   position, never random — a card that lands at a different angle on every
+   render reads as a bug, not as a hand. */
+.mount { transform: rotate(-0.9deg); }
+.mount:nth-child(2n) { transform: rotate(1deg); }
+.mount:nth-child(3n) { transform: rotate(-0.4deg); }
+
+/* Hover only where there is a real pointer. A touch device fires hover on tap
+   and then keeps it, so a card stays lifted after you have moved on. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .mount { transition: transform 200ms var(--ease-paper); }
+  .mount:hover { transform: rotate(0deg) translateY(-3px); }
+}
+
+/* Shelf switching is the one thing here a reader will do repeatedly, so it
+   gets 150ms and nothing else. An entrance animation you see thirty times is
+   thirty small delays, not thirty small delights. */
+@media (prefers-reduced-motion: no-preference) {
+  .shelf-in { animation: shelf 150ms var(--ease-paper) both; }
+  @keyframes shelf { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
 }
 
 ::selection {

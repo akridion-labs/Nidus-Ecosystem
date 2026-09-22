@@ -10,6 +10,8 @@ import type {
 import { catalogue } from './data/catalogue.ts'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank } from './domain/ranker.ts'
+import { SHELVES, shelfItems } from './domain/shelves.ts'
+import type { Shelf } from './domain/shelves.ts'
 import type { CoverageGap } from './domain/ranker.ts'
 
 /* ---------------------------------------------------------------- *
@@ -154,6 +156,101 @@ const OPENINGS: Opening[] = [
     brief: { purpose: 'craft', mode: 'apply', sessionMinutes: 30 },
   },
 ]
+
+function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
+  const [openId, setOpenId] = useState(SHELVES[0].id)
+  const shelf = SHELVES.find((x) => x.id === openId)!
+  const books = shelfItems(catalogue, shelf)
+
+  return (
+    <section aria-labelledby="shelves" className="mt-16">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 id="shelves" className="display text-[2rem]">The shelves</h2>
+        <p className="max-w-[46ch] text-[15px] text-muted">
+          Somewhere to wander rather than a question to answer. A shelf shows what is here; it is
+          not a recommendation, and the arithmetic still decides what fits tonight.
+        </p>
+      </div>
+
+      {/* Index tabs, like the dividers in a card catalogue. */}
+      <div role="tablist" aria-label="Shelves" className="mt-6 flex flex-wrap gap-2">
+        {SHELVES.map((x) => {
+          const count = shelfItems(catalogue, x).length
+          const on = x.id === openId
+          return (
+            <button
+              key={x.id}
+              role="tab"
+              aria-selected={on}
+              type="button"
+              onClick={() => setOpenId(x.id)}
+              className={[
+                'transition-ui flex min-h-11 items-center gap-2 rounded-t-xl border px-4 text-[15px]',
+                on
+                  ? 'border-line border-b-surface bg-surface text-ink'
+                  : 'border-transparent bg-paper text-muted hover:text-ink',
+              ].join(' ')}
+            >
+              {x.name}
+              <span className={count === 0 ? 'label-caps text-amber' : 'label-caps text-accent'}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div key={shelf.id} className="shelf-in rounded-2xl rounded-tl-none border border-line bg-surface p-5 sm:p-8">
+        <p className="book-voice max-w-[34ch] text-[1.5rem]">{shelf.note}</p>
+
+        {books.length === 0 ? (
+          <div className="mt-6 rounded-xl border border-amber bg-amber-soft p-5">
+            <p className="font-medium">This shelf is empty, and that is the truth rather than a placeholder.</p>
+            <p className="mt-2 max-w-[58ch] text-[15px] text-muted">
+              There is no science fiction in the Nidus catalogue at all — not one title. Filling this
+              shelf is not a switch to flip: each book needs an editorial profile written by a person
+              who has read it, an edition confirmed against a bibliographic source, and a plain
+              sentence saying what it is. Until that happens, an empty shelf is the honest answer and
+              a “coming soon” badge would not be.
+            </p>
+          </div>
+        ) : (
+          <>
+            <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+              {books.map((item) => (
+                <li
+                  key={item.work.id}
+                  className="mount rounded-xl border border-line bg-paper p-4"
+                >
+                  <p className="book-voice text-[1.25rem]">{item.work.title}</p>
+                  <p className="text-[14px] text-muted">
+                    {item.work.author}
+                    {item.work.firstPublished !== null && ` · ${item.work.firstPublished}`}
+                  </p>
+                  <p className="mt-2 text-[15px] leading-snug">{item.profile.inOneLine}</p>
+                  <p className="label-caps mt-3 text-muted">
+                    {item.profile.topics.filter((t) => shelf.topics.includes(t)).join(' · ')}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => onPick(shelf)}
+              className="transition-ui mt-6 min-h-12 rounded-xl bg-accent px-6 text-[16px] font-semibold text-surface hover:opacity-90 active:scale-[0.98]"
+            >
+              Pick tonight&rsquo;s book from this shelf
+            </button>
+            <p className="mt-2 max-w-[54ch] text-[14px] text-muted">
+              Runs the same ranking as everything else, so it may hand you a book you were not
+              looking at — or rule out every one of these and say so.
+            </p>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
 
 /* ---------------------------------------------------------------- *
  * Primitives
@@ -345,6 +442,15 @@ export default function App() {
     setRunId((n) => n + 1)
   }
 
+  function applyShelf(shelf: Shelf) {
+    setPurpose(shelf.brief.purpose)
+    setMode(shelf.brief.mode)
+    setSessionMinutes(shelf.brief.sessionMinutes)
+    setAuthor(null)
+    answer()
+    document.getElementById('results')?.scrollIntoView({ block: 'start' })
+  }
+
   function applyOpening(o: Opening) {
     setOpeningId(o.id)
     setPurpose(o.brief.purpose)
@@ -402,6 +508,10 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-paper">
+      {/* Three tints of the palette drifting on minute-long loops. Only
+          `transform` animates, nothing here is interactive, and reduced motion
+          stops it dead. */}
+      <div className="livewash" aria-hidden><span /><span /><span /></div>
       <a
         href="#results"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-10 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3"
@@ -881,6 +991,8 @@ export default function App() {
             )}
           </section>
          </div>
+
+          <Shelves onPick={applyShelf} />
 
           <section aria-labelledby="vs" className="mt-16 rounded-2xl border border-line bg-surface p-6 sm:p-10">
             <h2 id="vs" className="display text-[2rem]">Why not just ask a chatbot?</h2>
