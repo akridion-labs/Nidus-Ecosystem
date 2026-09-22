@@ -26,3 +26,4 @@ dist-ssr
 # local env and transfer artefacts
 .env.local
 *.tgz
+.vite-out

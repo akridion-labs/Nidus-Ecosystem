@@ -63,6 +63,24 @@ export const ACCESS_ROUTES = ['on-your-shelf', 'public-domain', 'to-obtain'] as 
 export const AccessRoute = z.enum(ACCESS_ROUTES)
 export type AccessRoute = z.infer<typeof AccessRoute>
 
+/**
+ * What the reader can actually use. 'any' means no constraint. The seed
+ * catalogue is print-only, so asking for audio honestly returns nothing
+ * rather than handing over a print edition and calling it an audiobook.
+ */
+export const FORMAT_PREFS = ['any', 'print', 'ebook', 'audio'] as const
+export const FormatPreference = z.enum(FORMAT_PREFS)
+export type FormatPreference = z.infer<typeof FormatPreference>
+
+/**
+ * What the reader can spend. 'free-only' keeps to books already on their
+ * shelf and out-of-copyright texts. Nidus has no price feed, so this is the
+ * only affordability claim it can make without inventing numbers.
+ */
+export const BUDGETS = ['any', 'free-only'] as const
+export const Budget = z.enum(BUDGETS)
+export type Budget = z.infer<typeof Budget>
+
 /** Blueprint: FULL_READ / SELECTED_CHAPTERS / WORKBOOK_REFERENCE / DEFER. */
 export const USAGE = ['FULL_READ', 'SELECTED_CHAPTERS', 'WORKBOOK_REFERENCE', 'DEFER'] as const
 export const RecommendedUsage = z.enum(USAGE)
@@ -97,12 +115,27 @@ export type Provenance = z.infer<typeof Provenance>
  * 1. Work — the book itself. Facts only.
  * ------------------------------------------------------------------ */
 
+/**
+ * A popularity claim in its source's own words, with the date it was checked.
+ * confirmedAt is NOT nullable here on purpose: an undated sales figure is not
+ * a fact, it is marketing. Nidus has no sales feed, so every seed row is null
+ * and the UI shows nothing rather than a made-up number. Never scored —
+ * popularity is displayed when it is sourced, and it moves no ranking.
+ */
+export const Popularity = z.object({
+  claim: z.string().min(1),
+  source: z.string().min(1),
+  confirmedAt: z.iso.date(),
+})
+export type Popularity = z.infer<typeof Popularity>
+
 export const Work = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   author: z.string().min(1),
   firstPublished: z.number().int().min(1000).max(2100).nullable(),
   fiction: z.boolean(),
+  popularity: Popularity.nullable().default(null),
   provenance: Provenance,
 })
 export type Work = z.infer<typeof Work>
@@ -130,6 +163,12 @@ export type Edition = z.infer<typeof Edition>
 
 export const BookProfile = z.object({
   workId: z.string().min(1),
+  /**
+   * One sentence of plain English saying what the book is. Not a blurb, not
+   * a pitch, no jargon: the sentence you would use telling a friend. Shown
+   * before the title's own marketing ever gets a chance to.
+   */
+  inOneLine: z.string().min(1).max(140),
   modes: z.array(Mode).min(1),
   topics: z.array(z.string().min(1)).default([]),
   /** 1 easy … 5 demanding. */
@@ -188,6 +227,12 @@ export const ReadingBrief = z.object({
   sessionMinutes: z.number().int().min(5).max(240),
   /** Adult pilot. The gate is explicit rather than assumed. */
   adultConfirmed: z.boolean().default(true),
+  /** print / ebook / audio. A hard gate, exactly like language. */
+  formatPreference: FormatPreference.default('any'),
+  /** 'free-only' excludes anything the reader would have to buy. */
+  budget: Budget.default('any'),
+  /** Exact author name the reader chose to browse. Null = no author filter. */
+  author: z.string().nullable().default(null),
   /** Asked only when entrepreneurship is the purpose. */
   founderContext: FounderContext.nullable().default(null),
   intents: z.array(CatalogueIntent).default([]),

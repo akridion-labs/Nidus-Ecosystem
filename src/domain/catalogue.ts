@@ -1,5 +1,7 @@
 import { Work, Edition, BookProfile, CATALOGUE_VERSION } from './contracts.ts'
-import type { Work as W, Edition as E, BookProfile as P } from './contracts.ts'
+import type {
+  Work as W, Edition as E, BookProfile as P, FormatPreference,
+} from './contracts.ts'
 
 export type RejectedRow = { list: string; index: number; id: unknown; problems: string[] }
 
@@ -120,9 +122,25 @@ export function loadCatalogue(
   return { version: CATALOGUE_VERSION, items, rejected, languages }
 }
 
-/** The edition to offer for a language, or undefined when there is no gap-free answer. */
-export function editionIn(item: CatalogueItem, language: string): E | undefined {
-  return item.editions.find((e) => e.language === language)
+/**
+ * The edition to offer, or undefined when there is no gap-free answer.
+ * Format is a gate exactly like language: asking for an audiobook and being
+ * handed a print edition is the kind of near-enough answer this build refuses
+ * to give. 'any' means the reader put no constraint on it.
+ */
+export function editionIn(
+  item: CatalogueItem,
+  language: string,
+  format: FormatPreference = 'any',
+): E | undefined {
+  return item.editions.find(
+    (e) => e.language === language && (format === 'any' || e.format === format),
+  )
+}
+
+/** Every distinct author in the catalogue, for author-led browsing. */
+export function authorsIn(catalogue: LoadedCatalogue): string[] {
+  return [...new Set(catalogue.items.map((i) => i.work.author))].sort()
 }
 
 export function isUnverified(item: CatalogueItem): boolean {

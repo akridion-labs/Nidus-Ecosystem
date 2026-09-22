@@ -11,7 +11,7 @@ import { PUBLIC_DOMAIN_WORKS } from '../data/catalogue.seed.ts'
  * and the catalogue version, so a changed recommendation can be explained
  * later instead of argued about.
  */
-export const RANKER_VERSION = 'nidus-ranker-0.2.1-pilot'
+export const RANKER_VERSION = 'nidus-ranker-0.3.0-pilot'
 
 /* ================================================================== *
  * 1. Eligibility — a binary gate that runs before any scoring.
@@ -21,7 +21,8 @@ export const RANKER_VERSION = 'nidus-ranker-0.2.1-pilot'
 
 export type Ineligible = { item: CatalogueItem; reason: string; kind: EligibilityFailure }
 export type EligibilityFailure =
-  | 'audience' | 'language' | 'mode' | 'completed' | 'rejected' | 'deferred'
+  | 'audience' | 'language' | 'format' | 'budget' | 'author'
+  | 'mode' | 'completed' | 'rejected' | 'deferred'
 
 export function isEligible(
   item: CatalogueItem,
@@ -30,8 +31,24 @@ export function isEligible(
   if (!brief.adultConfirmed) {
     return { ok: false, kind: 'audience', reason: 'the pilot is for adults only' }
   }
+  if (brief.author !== null && item.work.author !== brief.author) {
+    return { ok: false, kind: 'author', reason: `not by ${brief.author}` }
+  }
   if (!editionIn(item, brief.language)) {
     return { ok: false, kind: 'language', reason: `no confirmed ${brief.language} edition` }
+  }
+  // Format is its own gate, reported separately, so "we have this book but not
+  // as an audiobook" never gets flattened into "we do not have this book".
+  if (!editionIn(item, brief.language, brief.formatPreference)) {
+    return {
+      ok: false, kind: 'format',
+      reason: `no confirmed ${brief.formatPreference} edition in ${brief.language}`,
+    }
+  }
+  // The only affordability claim Nidus can make without a price feed: this one
+  // would have to be bought, and the reader said they cannot buy.
+  if (brief.budget === 'free-only' && accessRoute(item, brief) === 'to-obtain') {
+    return { ok: false, kind: 'budget', reason: 'you would have to buy a copy of this one' }
   }
   const intent = brief.intents.find((i) => i.workId === item.work.id)
   if (intent?.status === 'COMPLETED' && !brief.revisitCompleted) {
@@ -382,7 +399,7 @@ function cannotDoFor(item: CatalogueItem, brief: ReadingBrief): string[] {
   if (item.work.provenance.confirmedAt === null) {
     out.push('Edition details are a draft and have not been confirmed against a source.')
   }
-  if (!editionIn(item, brief.language)?.isbn13) {
+  if (!editionIn(item, brief.language, brief.formatPreference)?.isbn13) {
     out.push('No ISBN recorded, so the exact edition is not pinned down.')
   }
   if (item.profile.conceptualDifficulty >= 4) {
@@ -410,9 +427,16 @@ export type RankResult = {
   branch: 'generic' | 'founder'
   decisions: RecommendationDecision[]
   excluded: Ineligible[]
-  /** True only when the language gate, not taste, emptied the list. */
-  languageGap: boolean
+  /**
+   * Why the list is empty, when a coverage gate emptied it rather than taste.
+   * Null when there are results, or when the reader simply set everything
+   * aside. Reported in priority order, so the reader is told the thing they
+   * would have to change first.
+   */
+  gap: CoverageGap | null
 }
+
+export type CoverageGap = 'language' | 'format' | 'author' | 'budget'
 
 export function rank(catalogue: LoadedCatalogue, brief: ReadingBrief): RankResult {
   const useFounderBranch =
@@ -427,7 +451,7 @@ export function rank(catalogue: LoadedCatalogue, brief: ReadingBrief): RankResul
 
   const decisions: RecommendationDecision[] = selectRoles(scored).map(({ pick, role }) => {
     const item = pick.item
-    const edition = editionIn(item, brief.language)!
+    const edition = editionIn(item, brief.language, brief.formatPreference)!
     const missing = useFounderBranch ? missingPrerequisites(item, brief) : []
     const overCap = useFounderBranch && (brief.founderContext?.activeApplyBooks ?? 0) >= 1
     const { usage, deferReason } = usageFor(item, brief, missing, overCap)
@@ -456,15 +480,47 @@ export function rank(catalogue: LoadedCatalogue, brief: ReadingBrief): RankResul
     }
   })
 
-  // The gap is about coverage, not taste: the catalogue has nothing at all in
-  // the language the reader asked for.
-  const languageGap =
-    decisions.length === 0 && !catalogue.items.some((i) => editionIn(i, brief.language))
-
   return {
     rankerVersion: RANKER_VERSION, catalogueVersion: catalogue.version,
-    branch, decisions, excluded: fail, languageGap,
+    branch, decisions, excluded: fail,
+    gap: decisions.length === 0 ? coverageGap(catalogue, brief) : null,
   }
+}
+
+/**
+ * Which gate to name when nothing came through.
+ *
+ * Each branch is a statement about the CATALOGUE, not about which rows
+ * happened to fail: "there is no Telugu edition of anything here" is a fact
+ * a reader can act on, whereas "some rows failed the language gate" is true
+ * of almost every session and tells them nothing. When none of these hold the
+ * list was emptied by taste — wrong mode, already read, set aside — and the
+ * generic empty state is the honest answer instead.
+ *
+ * Language comes first because no edition at all is a bigger fact than no
+ * audio edition; being told about the format while the whole book is missing
+ * would send the reader to fix the wrong thing.
+ */
+function coverageGap(catalogue: LoadedCatalogue, brief: ReadingBrief): CoverageGap | null {
+  // Language and format are asked of the WHOLE catalogue, before the author
+  // filter narrows it. Otherwise picking one author and one language would
+  // report "no Telugu edition of anything here" when the truth is only "not
+  // by this author" — a much bigger claim than the facts support.
+  const inLanguage = catalogue.items.filter((i) => editionIn(i, brief.language))
+  if (inLanguage.length === 0) return 'language'
+
+  const inFormat = inLanguage.filter((i) => editionIn(i, brief.language, brief.formatPreference))
+  if (inFormat.length === 0) return 'format'
+
+  const byAuthor = brief.author === null
+    ? inFormat
+    : inFormat.filter((i) => i.work.author === brief.author)
+  if (byAuthor.length === 0) return 'author'
+
+  if (brief.budget === 'free-only'
+      && byAuthor.every((i) => accessRoute(i, brief) === 'to-obtain')) return 'budget'
+
+  return null
 }
 
 function whyNow(brief: ReadingBrief, role: ResultRole): string {

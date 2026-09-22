@@ -14,7 +14,8 @@
     "migrate": "node server/db/migrate.ts",
     "server": "node server/index.ts",
     "typecheck:server": "tsc -p tsconfig.server.json",
-    "bench": "node tools/ranker-bench.ts"
+    "bench": "node tools/ranker-bench.ts",
+    "build:single": "vite build --outDir .vite-out --emptyOutDir && node tools/inline-single-file.mjs .vite-out && mkdir -p release && cp .vite-out/nidus-pilot.html release/nidus-pilot.html"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

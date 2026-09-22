@@ -30,7 +30,8 @@ function tinyCatalogue(
     [{ id: 'w', title: 'W', author: 'A', firstPublished: null, fiction: false, provenance: DRAFT, ...work }],
     [{ id: 'e', workId: 'w', language: 'en', isbn13: null, format: 'print', pages: null, provenance: DRAFT, ...edition }],
     [{
-      workId: 'w', modes: ['apply'], topics: ['validation'], conceptualDifficulty: 2,
+      workId: 'w', inOneLine: 'A test book about one small thing.', modes: ['apply'],
+      topics: ['validation'], conceptualDifficulty: 2,
       typicalSessionMinutes: 10, actionability: 4, emotionalIntensity: 1, targetStages: ['VALIDATE'],
       competencyTags: ['customer-learning'], prerequisites: [], tooEarlyStages: [],
       suggestedArtifact: 'do the thing', provenance: DRAFT, ...profile,
@@ -291,13 +292,69 @@ test('apply mode states that reading cannot replace the work itself', () => {
 test('an empty result caused by language coverage is reported as a language gap', () => {
   const r = rank(loaded, brief({ language: 'ta' }))
   assert.equal(r.decisions.length, 0)
-  assert.equal(r.languageGap, true)
+  assert.equal(r.gap, 'language')
 })
 
 test('an empty result caused by taste is not blamed on language', () => {
   const r = rank(tinyCatalogue({}, {}, { modes: ['enjoy'] }), brief({ mode: 'apply' }))
   assert.equal(r.decisions.length, 0)
-  assert.equal(r.languageGap, false)
+  assert.equal(r.gap, null)
+})
+
+test('asking for an audiobook is refused, not answered with a print edition', () => {
+  // Every seed edition is print. The honest answer is an empty result naming
+  // the format, NOT the same book with the format quietly ignored.
+  const r = rank(loaded, brief({ formatPreference: 'audio' }))
+  assert.equal(r.decisions.length, 0)
+  assert.equal(r.gap, 'format')
+})
+
+test('a format gap is reported as format, not as a missing language', () => {
+  const r = rank(loaded, brief({ language: 'en', formatPreference: 'ebook' }))
+  assert.equal(r.gap, 'format')
+})
+
+test('free-only excludes every book the reader would have to buy', () => {
+  const r = rank(loaded, brief({ purpose: 'curiosity', mode: 'explore', budget: 'free-only' }))
+  for (const d of r.decisions) {
+    assert.notEqual(d.accessRoute, 'to-obtain')
+  }
+})
+
+test('an author filter answers only from that author', () => {
+  const r = rank(loaded, brief({
+    purpose: 'curiosity', mode: 'explore', author: 'Daniel Kahneman',
+  }))
+  assert.ok(r.decisions.length > 0)
+  for (const d of r.decisions) {
+    assert.equal(loaded.items.find((i) => i.work.id === d.workId)?.work.author, 'Daniel Kahneman')
+  }
+})
+
+test('an author nobody in the catalogue matches is reported as an author gap', () => {
+  const r = rank(loaded, brief({ author: 'Nobody At All' }))
+  assert.equal(r.decisions.length, 0)
+  assert.equal(r.gap, 'author')
+})
+
+test('every catalogue book has a plain-English one-liner that is not the title', () => {
+  for (const item of loaded.items) {
+    assert.ok(item.profile.inOneLine.length > 20, item.work.id)
+    assert.notEqual(item.profile.inOneLine, item.work.title)
+  }
+})
+
+test('no seed book carries an unsourced popularity claim', () => {
+  // A sales figure with no source and no date is marketing, not a fact. The
+  // schema cannot be satisfied by accident, so this asserts the seed is clean.
+  for (const item of loaded.items) {
+    assert.equal(item.work.popularity, null, item.work.id)
+  }
+})
+
+test('popularity never appears in a score breakdown', () => {
+  const d = rank(loaded, founderBrief()).decisions[0]
+  assert.equal(d.components.some((c) => /popular|sales/i.test(c.signal)), false)
 })
 
 test('ranking is stable for the same brief', () => {

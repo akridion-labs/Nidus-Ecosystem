@@ -14,7 +14,8 @@ function blow(n: number) {
     works.push({ id: `w${i}`, title: `Work ${i}`, author: `A${i % 500}`, firstPublished: 2000, fiction: i % 3 === 0, provenance: P })
     editions.push({ id: `e${i}`, workId: `w${i}`, language: i % 4 === 0 ? 'hi' : 'en', isbn13: null, format: 'print', pages: null, provenance: P })
     profiles.push({
-      workId: `w${i}`, modes: ['apply','explore','enjoy'].slice(0, (i % 3) + 1),
+      workId: `w${i}`, inOneLine: `Synthetic book ${i}, for measuring the ranker.`,
+      modes: ['apply','explore','enjoy'].slice(0, (i % 3) + 1),
       topics: [topics[i % 10], topics[(i + 3) % 10]],
       conceptualDifficulty: (i % 5) + 1, typicalSessionMinutes: 5 + (i % 6) * 5,
       actionability: i % 6, emotionalIntensity: i % 6,

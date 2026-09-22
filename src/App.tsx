@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import {
   ReadingBrief, MODES, PURPOSES, FOUNDER_STAGES, REJECTION_REASONS,
+  FORMAT_PREFS, BUDGETS,
 } from './domain/contracts.ts'
 import type {
-  AccessRoute, FounderStage, Mode, Purpose, RecommendationDecision,
-  RejectionReason, ResultRole, ReadingBrief as Brief,
+  AccessRoute, Budget, FormatPreference, FounderStage, Mode, Purpose,
+  RecommendationDecision, RejectionReason, ResultRole, ReadingBrief as Brief,
 } from './domain/contracts.ts'
 import { catalogue } from './data/catalogue.ts'
+import { authorsIn } from './domain/catalogue.ts'
 import { rank } from './domain/ranker.ts'
+import type { CoverageGap } from './domain/ranker.ts'
 
 /* ---------------------------------------------------------------- *
  * Copy. Wording comes from the UI brief and the wireframe, not from
@@ -37,6 +40,18 @@ const STAGE_COPY: Record<FounderStage, string> = {
   SCALE_RENEW: 'Scaling and renewing',
 }
 
+const FORMAT_COPY: Record<FormatPreference, { label: string; sub?: string }> = {
+  any: { label: 'Any', sub: 'Whatever exists' },
+  print: { label: 'Print' },
+  ebook: { label: 'Ebook' },
+  audio: { label: 'Audiobook' },
+}
+
+const BUDGET_COPY: Record<Budget, { label: string; sub: string }> = {
+  any: { label: 'I can buy a book', sub: 'No limit on the route' },
+  'free-only': { label: 'Free only', sub: 'My shelf, or out of copyright' },
+}
+
 const LANGUAGES = [
   { tag: 'en', label: 'English' },
   { tag: 'hi', label: 'हिंदी' },
@@ -58,7 +73,7 @@ const REJECTION_COPY: Record<RejectionReason, string> = {
 
 const ACCESS_COPY: Record<AccessRoute, string> = {
   'on-your-shelf': 'On your shelf',
-  'public-domain': 'Out of copyright',
+  'public-domain': 'Free to read',
   'to-obtain': 'You would need a copy',
 }
 
@@ -134,6 +149,9 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('apply')
   const [language, setLanguage] = useState('en')
   const [sessionMinutes, setSessionMinutes] = useState(20)
+  const [formatPreference, setFormatPreference] = useState<FormatPreference>('any')
+  const [budget, setBudget] = useState<Budget>('any')
+  const [author, setAuthor] = useState<string | null>(null)
 
   // Founder context is asked only when entrepreneurship is the purpose, and
   // every field is user-confirmed. Nothing here is inferred.
@@ -144,18 +162,22 @@ export default function App() {
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
   const [chosen, setChosen] = useState<string | null>(null)
   const [shown, setShown] = useState(false)
+  // One book at a time. The feedback was explicit: a stack of three cards reads
+  // as a bundle to get through, not as an answer to the question asked.
+  const [revealed, setRevealed] = useState(1)
 
   const asksFounder = purpose === 'company-building'
 
   const brief: Brief = useMemo(
     () =>
       ReadingBrief.parse({
-        purpose, mode, language, sessionMinutes,
+        purpose, mode, language, sessionMinutes, formatPreference, budget, author,
         adultConfirmed: true,
         founderContext: asksFounder ? { stage, currentDecision, actionHoursPerWeek: 2, activeApplyBooks } : null,
         rejections,
       }),
-    [purpose, mode, language, sessionMinutes, asksFounder, stage, currentDecision, activeApplyBooks, rejections],
+    [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -163,8 +185,35 @@ export default function App() {
     () => Object.fromEntries(catalogue.items.map((i) => [i.work.id, i])),
     [],
   )
+  const authors = useMemo(() => authorsIn(catalogue), [])
 
   const languageLabel = LANGUAGES.find((l) => l.tag === language)?.label ?? language
+  const visible = result.decisions.slice(0, revealed)
+  const more = result.decisions.length - visible.length
+
+  function restart() {
+    setShown(true)
+    setRevealed(1)
+  }
+
+  const GAP_COPY: Record<CoverageGap, { head: string; body: string }> = {
+    language: {
+      head: `Nidus has no confirmed ${languageLabel} edition for anything in this catalogue yet.`,
+      body: `The seed catalogue covers ${catalogue.languages.join(', ')} so far. Nidus will not hand you an English book and call it a ${languageLabel} match.`,
+    },
+    format: {
+      head: `Nidus has no confirmed ${FORMAT_COPY[formatPreference].label.toLowerCase()} edition here yet.`,
+      body: 'Every row in this seed catalogue is a print edition. Audiobook and ebook rows need a supplier whose catalogue Nidus can actually check, so until that exists this answer stays empty rather than pointing you at a print copy.',
+    },
+    author: {
+      head: `Nothing by ${author} in ${languageLabel} is in this catalogue.`,
+      body: 'The pilot catalogue is fourteen books by fourteen authors. Choose another author, change the language, or clear the filter.',
+    },
+    budget: {
+      head: 'Nothing here is free for you right now.',
+      body: 'Everything that matched would have to be bought, and you said free only. Out-of-copyright titles in this build are The Book of Five Rings and the Bhagavad Gita — try another purpose or mode to reach them.',
+    },
+  }
 
   return (
     <div className="min-h-dvh bg-paper">
@@ -172,7 +221,7 @@ export default function App() {
         href="#results"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-10 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3"
       >
-        Skip to the books
+        Skip to the book
       </a>
 
       <div className="mx-auto max-w-[42rem] px-4 sm:px-6">
@@ -180,11 +229,12 @@ export default function App() {
           <p className="label-caps text-accent">Nidus</p>
           <p className="text-[15px] text-muted">Read alone. Grow together.</p>
           <h1 className="mt-6 max-w-[18ch] text-[2rem] leading-[1.15] font-semibold text-balance sm:text-[2.5rem]">
-            A book for your next chapter.
+            One book. Not a reading list.
           </h1>
           <p className="mt-3 max-w-[58ch] text-muted">
-            Choose what you need today. Find a book and a reading rhythm that fits. Nothing on this page
-            is saved — reload and Nidus forgets you were here.
+            Tell Nidus what today actually looks like. It answers with a single book, the reason it
+            picked that one, and what the book cannot do for you. Nothing on this page is saved —
+            reload and Nidus forgets you were here.
           </p>
         </header>
 
@@ -216,11 +266,73 @@ export default function App() {
               ))}
             </Field>
 
+            <Field
+              legend="How you want to read it"
+              hint="Audiobook is a real filter, not a preference Nidus quietly ignores. The seed catalogue is print-only, so asking for audio will honestly come back empty until a supplier is connected."
+            >
+              {FORMAT_PREFS.map((f) => (
+                <Choice
+                  key={f} name="format" value={f} current={formatPreference}
+                  label={FORMAT_COPY[f].label} sub={FORMAT_COPY[f].sub} onChange={setFormatPreference}
+                />
+              ))}
+            </Field>
+
+            <Field
+              legend="What you can spend"
+              hint="Nidus has no price feed and will not invent one. What it can do is keep to books already on your shelf and books out of copyright, which cost nothing to read."
+              layout="grid"
+            >
+              {BUDGETS.map((b) => (
+                <Choice
+                  key={b} name="budget" value={b} current={budget}
+                  label={BUDGET_COPY[b].label} sub={BUDGET_COPY[b].sub} onChange={setBudget}
+                />
+              ))}
+            </Field>
+
             <Field legend="Time you actually have">
               {SESSIONS.map((s) => (
                 <Choice key={s} name="session" value={s} current={sessionMinutes} label={`${s} min`} onChange={setSessionMinutes} />
               ))}
             </Field>
+
+            <details className="mb-7 rounded-xl border border-line bg-paper p-4">
+              <summary className="label-caps min-h-11 cursor-pointer py-2 text-muted">
+                Start from an author instead {author && `— ${author}`}
+              </summary>
+              <p className="mt-2 mb-3 max-w-[58ch] text-[15px] text-muted">
+                Most people pick a book because of who wrote it. Choose an author and Nidus answers only
+                from their work — the rest of your moment still decides which book, and why.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAuthor(null)}
+                  aria-pressed={author === null}
+                  className={[
+                    'transition-ui min-h-11 rounded-lg border px-3 text-[15px]',
+                    author === null ? 'border-accent bg-accent-soft' : 'border-line bg-surface text-muted hover:border-accent',
+                  ].join(' ')}
+                >
+                  Any author
+                </button>
+                {authors.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setAuthor(a)}
+                    aria-pressed={author === a}
+                    className={[
+                      'transition-ui min-h-11 rounded-lg border px-3 text-[15px]',
+                      author === a ? 'border-accent bg-accent-soft' : 'border-line bg-surface text-muted hover:border-accent',
+                    ].join(' ')}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </details>
 
             {asksFounder && (
               <details className="mb-7 rounded-xl border border-line bg-paper p-4">
@@ -265,7 +377,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setShown(true)}
+              onClick={restart}
               className="transition-ui min-h-12 w-full rounded-xl bg-accent px-6 text-[17px] font-semibold text-surface hover:opacity-90 sm:w-auto"
             >
               Find my next read
@@ -282,15 +394,10 @@ export default function App() {
               <p className="rounded-2xl border border-dashed border-line bg-surface p-6 text-muted">
                 Nothing suggested yet. Set your moment above, then choose <em>Find my next read</em>.
               </p>
-            ) : result.languageGap ? (
+            ) : result.gap !== null ? (
               <div className="rounded-2xl border border-amber bg-amber-soft p-6">
-                <p className="font-medium">
-                  Nidus has no confirmed {languageLabel} edition for anything in this catalogue yet.
-                </p>
-                <p className="mt-2 max-w-[58ch] text-[15px] text-muted">
-                  The seed catalogue covers {catalogue.languages.join(', ')} so far. Recording that you
-                  wanted {languageLabel} needs the feedback store, which is not in this build.
-                </p>
+                <p className="font-medium">{GAP_COPY[result.gap].head}</p>
+                <p className="mt-2 max-w-[58ch] text-[15px] text-muted">{GAP_COPY[result.gap].body}</p>
               </div>
             ) : result.decisions.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-6">
@@ -308,7 +415,7 @@ export default function App() {
                   <p>{result.decisions[0].whyThisMode}</p>
                 </div>
                 <ol className="space-y-4">
-                  {result.decisions.map((d) => {
+                  {visible.map((d) => {
                     const item = items[d.workId]
                     const deferred = d.recommendedUsage === 'DEFER'
                     return (
@@ -320,9 +427,28 @@ export default function App() {
                         </div>
 
                         <h3 className="text-[1.25rem] leading-snug font-semibold">{item.work.title}</h3>
-                        <p className="text-muted">{item.work.author}</p>
+                        <p className="text-muted">
+                          <button
+                            type="button"
+                            onClick={() => { setAuthor(item.work.author); restart() }}
+                            className="underline underline-offset-2 hover:text-ink"
+                          >
+                            {item.work.author}
+                          </button>
+                          {' '}· more from this author
+                        </p>
 
-                        <p className="mt-3 max-w-[62ch]">{d.whyThisBook}</p>
+                        {/* Plain English first, before any of Nidus's own reasoning. */}
+                        <p className="mt-3 max-w-[62ch] text-[17px]">{item.profile.inOneLine}</p>
+
+                        {item.work.popularity && (
+                          <p className="mt-2 text-[15px] text-muted">
+                            {item.work.popularity.claim} — {item.work.popularity.source}, checked{' '}
+                            {item.work.popularity.confirmedAt}.
+                          </p>
+                        )}
+
+                        <p className="mt-3 max-w-[62ch] text-[15px] text-muted">{d.whyThisBook}</p>
 
                         {deferred && d.deferReason && (
                           <p className="mt-3 max-w-[62ch] rounded-lg border border-amber bg-amber-soft p-3 text-[15px]">
@@ -353,6 +479,27 @@ export default function App() {
 
                         <details className="mt-4">
                           <summary className="min-h-11 cursor-pointer py-2 text-[16px] font-medium text-accent">
+                            How do I get hold of it?
+                          </summary>
+                          <div className="mt-2 max-w-[62ch] space-y-2 text-[15px] text-muted">
+                            <p>
+                              {d.accessRoute === 'on-your-shelf'
+                                ? 'You told Nidus this one is already yours, so there is nothing to arrange.'
+                                : d.accessRoute === 'public-domain'
+                                  ? 'This text is out of copyright. A free, legal edition is easy to find — the translation you pick will change the reading, so choose one deliberately.'
+                                  : 'You would have to get hold of a copy. Nidus does not sell books and takes no commission.'}
+                            </p>
+                            <p className="rounded-lg border border-amber bg-amber-soft p-3 text-ink">
+                              <strong className="font-medium">Nidus cannot see shop stock.</strong> It has no feed
+                              from any bookshop, online or on your street, so it will never tell you a copy is
+                              waiting for you. Checking a neighbourhood shop means asking a real person there,
+                              and the ask-a-shop flow needs a shop that has agreed to answer. None has yet.
+                            </p>
+                          </div>
+                        </details>
+
+                        <details className="mt-3">
+                          <summary className="min-h-11 cursor-pointer py-2 text-[16px] font-medium text-accent">
                             Why this book?
                           </summary>
                           <table className="mt-2 w-full text-[15px]">
@@ -371,8 +518,8 @@ export default function App() {
                           </table>
                           <p className="mt-3 max-w-[62ch] text-[14px] text-muted">
                             {d.score} out of 100 on the {d.branch} ranker. This is a rule total, not a
-                            prediction that the book will work for you. Ranker {d.rankerVersion}, catalogue{' '}
-                            {d.catalogueVersion}.
+                            prediction that the book will work for you. Popularity and sales figures move
+                            none of it. Ranker {d.rankerVersion}, catalogue {d.catalogueVersion}.
                           </p>
                         </details>
 
@@ -403,7 +550,7 @@ export default function App() {
                                 <button
                                   key={reason}
                                   type="button"
-                                  onClick={() => setRejections((prev) => [...prev, { workId: d.workId, reason }])}
+                                  onClick={() => { setRejections((prev) => [...prev, { workId: d.workId, reason }]); setRevealed(1) }}
                                   className="transition-ui min-h-11 rounded-lg border border-line bg-paper px-3 text-[15px] hover:border-accent"
                                 >
                                   {REJECTION_COPY[reason]}
@@ -416,6 +563,16 @@ export default function App() {
                     )
                   })}
                 </ol>
+
+                {more > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setRevealed((n) => n + 1)}
+                    className="transition-ui mt-4 min-h-11 w-full rounded-xl border border-line bg-surface px-5 text-[16px] text-muted hover:border-accent hover:text-ink"
+                  >
+                    Show me one more ({more} left)
+                  </button>
+                )}
               </>
             )}
 
@@ -430,12 +587,42 @@ export default function App() {
             )}
           </section>
 
+          <section aria-labelledby="vs" className="mt-10 rounded-2xl border border-line bg-surface p-5 sm:p-7">
+            <h2 id="vs" className="text-[1.375rem] font-semibold">Why not just ask a chatbot?</h2>
+            <p className="mt-3 max-w-[62ch] text-muted">
+              Fair question, and a general assistant will give you a longer list faster. Four things
+              are different here, and only the first three are true in this build.
+            </p>
+            <ul className="mt-4 max-w-[62ch] list-disc space-y-3 pl-5">
+              <li>
+                <strong className="font-medium">It answers with one book.</strong> A list of ten is a
+                decision you still have to make. Nidus commits to one, and shows the arithmetic.
+              </li>
+              <li>
+                <strong className="font-medium">It says what the book cannot do.</strong> Every card
+                carries that section, including the part where reading is not a substitute for the work.
+              </li>
+              <li>
+                <strong className="font-medium">It refuses rather than approximates.</strong> No Telugu
+                edition means it says so, instead of handing you English and calling it close enough.
+              </li>
+              <li>
+                <strong className="font-medium">It will remember — not yet here.</strong> A chatbot loses
+                the thread and re-suggests the same book in a month. Nidus keeps a reading record that is
+                yours, so nothing it has already given you comes back. That record is built and tested in
+                the server, and this browser-only build is not wired to it.
+              </li>
+            </ul>
+          </section>
+
           <footer className="mt-12 border-t border-line pt-6 text-[15px] text-muted">
             <p className="max-w-[62ch]">
               Pilot build, adults only. No account, no cookie, no saved record. Catalogue rows are drafts
               and none has been confirmed against a bibliographic source, so treat every edition detail as
-              provisional. My&nbsp;Shelf, My&nbsp;Journey, saved journeys, the weekly rhythm and edition
-              requests are not in this build.
+              provisional. Sales and popularity figures are shown only where a dated source is recorded —
+              none is, so none appears, and they move no ranking either way. My&nbsp;Shelf, My&nbsp;Journey,
+              saved journeys, the weekly rhythm, coupons, edition requests and the ask-a-shop flow are not
+              in this build.
             </p>
             {catalogue.rejected.length > 0 && (
               <p className="mt-2 max-w-[62ch]">

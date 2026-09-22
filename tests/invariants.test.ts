@@ -25,6 +25,8 @@ const LANGUAGES = ['en', 'hi', 'te', 'ta', 'kn']
 const SESSIONS = [5, 10, 20, 30, 45, 90, 240]
 const TOPICS = ['validation', 'management', 'craft', 'focus', 'meaning', 'history', 'strategy', 'money']
 
+const AUTHORS = loaded.items.map((i) => i.work.author)
+
 function randomBrief(r: () => number): Brief {
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)]
   const ids = loaded.items.map((i) => i.work.id)
@@ -35,6 +37,12 @@ function randomBrief(r: () => number): Brief {
     mode: pick(MODES),
     language: pick(LANGUAGES),
     sessionMinutes: pick(SESSIONS),
+    // Weighted towards 'any': asking for audio empties the print-only seed
+    // catalogue every time, and a generator that did it often would spend its
+    // 3,000 briefs proving one thing instead of exercising the ranker.
+    formatPreference: r() > 0.85 ? pick(['print', 'ebook', 'audio'] as const) : 'any',
+    budget: r() > 0.8 ? 'free-only' : 'any',
+    author: r() > 0.9 ? pick([...AUTHORS, 'Nobody At All']) : null,
     adultConfirmed: r() > 0.02,
     founderContext: purpose === 'company-building' && r() > 0.3
       ? { stage: pick(FOUNDER_STAGES), currentDecision: r() > 0.5 ? 'whether to charge' : '',
@@ -115,9 +123,34 @@ test('invariants hold across 3,000 generated briefs', () => {
     if (!brief.adultConfirmed) {
       assert.equal(result.decisions.length, 0, `${where}: served a reader who did not confirm adulthood`)
     }
-    if (result.languageGap) {
+    if (result.gap === 'language') {
       assert.equal(loaded.items.some((x) => editionIn(x, brief.language)), false,
         `${where}: claimed a language gap that does not exist`)
+    }
+    if (result.gap === 'format') {
+      assert.equal(
+        loaded.items.some((x) => editionIn(x, brief.language, brief.formatPreference)), false,
+        `${where}: claimed a format gap that does not exist`)
+    }
+    if (result.gap === 'author') {
+      assert.notEqual(brief.author, null, `${where}: blamed an author filter that is not set`)
+    }
+    // A reported gap always means an empty list, never a hedge next to results.
+    if (result.gap !== null) {
+      assert.equal(result.decisions.length, 0, `${where}: reported a gap alongside results`)
+    }
+    // Nothing the reader cannot use may be offered: the format and budget
+    // gates are promises, and a promise that holds only on average is not one.
+    for (const d of result.decisions) {
+      if (brief.formatPreference !== 'any') {
+        const item = loaded.items.find((x) => x.work.id === d.workId)!
+        assert.equal(
+          item.editions.some((e) => e.id === d.editionId && e.format === brief.formatPreference),
+          true, `${where}: offered the wrong format`)
+      }
+      if (brief.budget === 'free-only') {
+        assert.notEqual(d.accessRoute, 'to-obtain', `${where}: offered a paid book on a free-only brief`)
+      }
     }
   }
 })
