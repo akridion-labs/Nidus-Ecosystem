@@ -1,3 +1,8 @@
+/* Instrument Serif for display and for the book's own sentence; Space Grotesk
+   for everything the interface says about itself. Two families, one job each.
+   `display=swap` so text is readable before the fonts land — a reading product
+   that shows a blank page while waiting for a font has the wrong priorities. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Tokens from Nidus_UI_UX_and_Model_Independent_Design_Brief.md:
@@ -16,7 +21,13 @@
   --color-amber: #8a5a10;
   --color-amber-soft: #f7efe2;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+
+  /* One easing curve for the whole product. Quart-out: leaves fast, settles
+     slow, which is how paper behaves. `ease` and `linear` are not used
+     anywhere — default easing is what makes an interface feel unfinished. */
+  --ease-paper: cubic-bezier(0.25, 1, 0.5, 1);
 
   /* Tailwind's --spacing base stays at its default 0.25rem. Overriding it
      silently doubles every p-/m-/gap- utility in the app. The 8px rhythm comes
@@ -24,7 +35,10 @@
      the scale. */
 }
 
-html { color-scheme: light; }
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
 
 body {
   background: var(--color-paper);
@@ -38,27 +52,85 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+/* Display type. Negative tracking pulls large serif into one shape; the
+   scale tops out around 84px on purpose. A viewport-filling headline would
+   win an award and lose the brief, which asks for a surface that does not
+   tire the eye. Display 84px against an 11px label is roughly 7.6:1. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 0.95;
+  text-wrap: balance;
+}
+
+/* The book's own sentence, and its title. Set in the display serif so the
+   book speaks in a different voice from the interface around it. */
+.book-voice {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
 /* All-caps labels are letterspaced, and never longer than one line. */
 .label-caps {
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 
 /* Keyboard use is a release requirement, not a nicety. */
 :focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 /* Brief: 150-250ms for local state changes, and nothing blocks the next action. */
 @media (prefers-reduced-motion: no-preference) {
-  .transition-ui { transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease; }
+  .transition-ui {
+    transition:
+      background-color 180ms var(--ease-paper),
+      border-color 180ms var(--ease-paper),
+      color 180ms var(--ease-paper),
+      transform 180ms var(--ease-paper);
+  }
+
+  /* Page-load choreography. Elements arrive in the order they are meant to be
+     read — masthead, headline, the sentence under it, then the form — rather
+     than all at once, which is the same as no order at all. */
+  .rise {
+    animation: rise 620ms var(--ease-paper) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* The score bars. Width is the only thing that moves, and it moves to a
+     number that is on the page next to it — the animation is the arithmetic
+     being performed, not decoration over the top of it. */
+  .bar-fill {
+    transform-origin: left center;
+    animation: fill 780ms var(--ease-paper) both;
+  }
+
+  @keyframes fill {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

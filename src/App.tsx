@@ -127,6 +127,66 @@ function Choice<T extends string | number>({
   )
 }
 
+/**
+ * The signature moment: the arithmetic, performed.
+ *
+ * This is the one thing Nidus does that a chatbot structurally cannot, so it
+ * is the one thing that must not be hidden behind a disclosure. Two facts are
+ * encoded, and both are honest rather than decorative:
+ *
+ *   track length  = how much this signal is WORTH (maxPoints, to scale)
+ *   fill          = how much this book EARNED of it
+ *
+ * So a short full bar and a long half-empty one read differently at a glance,
+ * which is exactly the difference they represent. The fill animates because
+ * the sum is being worked out in front of you, and it lands on a number
+ * printed beside it — if the animation ever disagreed with the number, the
+ * number is what is true.
+ */
+function Reasoning({
+  components, score, branch, rankerVersion, catalogueVersion,
+}: Pick<RecommendationDecision,
+  'components' | 'score' | 'branch' | 'rankerVersion' | 'catalogueVersion'>) {
+  const widest = Math.max(...components.map((c) => c.maxPoints))
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <p className="label-caps text-muted">The arithmetic</p>
+      <ul className="mt-4 space-y-4">
+        {components.map((c, i) => {
+          const penalty = c.points < 0
+          const earned = Math.abs(c.points) / c.maxPoints
+          return (
+            <li key={c.signal}>
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="label-caps text-ink">{c.signal.replace(/-/g, ' ')}</span>
+                <span className="text-[15px] font-medium tabular-nums whitespace-nowrap">
+                  {c.points > 0 ? '+' : ''}{c.points}
+                  <span className="text-muted"> / {c.maxPoints}</span>
+                </span>
+              </div>
+              <div
+                className="mt-2 h-[5px] rounded-full bg-line"
+                style={{ width: `${(c.maxPoints / widest) * 100}%` }}
+              >
+                <div
+                  className={`bar-fill h-full rounded-full ${penalty ? 'bg-amber' : 'bg-accent'}`}
+                  style={{ width: `${earned * 100}%`, animationDelay: `${140 + i * 70}ms` }}
+                />
+              </div>
+              <p className="mt-2 max-w-[54ch] text-[14px] leading-snug text-muted">{c.text}</p>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="mt-5 max-w-[54ch] text-[14px] text-muted">
+        <span className="text-[17px] font-semibold text-ink tabular-nums">{score}</span> out of 100 on
+        the {branch} ranker. A rule total, not a prediction that the book will work for you.
+        Popularity and sales figures move none of it. Ranker {rankerVersion}, catalogue {catalogueVersion}.
+      </p>
+    </div>
+  )
+}
+
 function Badge({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'amber' }) {
   return (
     <span
@@ -224,23 +284,39 @@ export default function App() {
         Skip to the book
       </a>
 
-      <div className="mx-auto max-w-[42rem] px-4 sm:px-6">
-        <header className="pt-10 pb-6">
-          <p className="label-caps text-accent">Nidus</p>
-          <p className="text-[15px] text-muted">Read alone. Grow together.</p>
-          <h1 className="mt-6 max-w-[18ch] text-[2rem] leading-[1.15] font-semibold text-balance sm:text-[2.5rem]">
-            One book. Not a reading list.
+      <div className="mx-auto max-w-[76rem] px-4 sm:px-6 lg:px-10">
+        {/* Grid break: the headline runs the full width, the sentence under it
+            sits in the last five columns. Centring both would be safe and
+            would say nothing. */}
+        <header className="grid gap-5 pt-12 pb-10 lg:grid-cols-12 lg:gap-x-8 lg:pt-20 lg:pb-16">
+          <div className="rise lg:col-span-6">
+            <p className="label-caps text-accent">Nidus</p>
+            <p className="mt-1 text-[15px] text-muted">Read alone. Grow together.</p>
+          </div>
+          <h1
+            className="display rise text-[clamp(2.75rem,10vw,5.25rem)] lg:col-span-12"
+            style={{ animationDelay: '90ms' }}
+          >
+            One book.<span className="block text-muted">Not a reading list.</span>
           </h1>
-          <p className="mt-3 max-w-[58ch] text-muted">
-            Tell Nidus what today actually looks like. It answers with a single book, the reason it
-            picked that one, and what the book cannot do for you. Nothing on this page is saved —
+          <p
+            className="rise max-w-[48ch] text-muted lg:col-span-5 lg:col-start-8"
+            style={{ animationDelay: '240ms' }}
+          >
+            Tell Nidus what today actually looks like. It answers with a single book, the arithmetic
+            that chose it, and what the book cannot do for you. Nothing on this page is saved —
             reload and Nidus forgets you were here.
           </p>
         </header>
 
-        <main className="pb-20">
-          <section aria-labelledby="moment" className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
-            <h2 id="moment" className="mb-6 text-[1.375rem] font-semibold">Your moment</h2>
+        <main className="pb-24">
+         <div className="grid items-start gap-8 lg:grid-cols-12 lg:gap-12">
+          <section
+            aria-labelledby="moment"
+            className="rise rounded-2xl border border-line bg-surface p-5 sm:p-7 lg:col-span-5"
+            style={{ animationDelay: '360ms' }}
+          >
+            <h2 id="moment" className="display mb-6 text-[1.75rem]">Your moment</h2>
 
             <Field legend="Purpose" layout="grid">
               {PURPOSES.map((p) => (
@@ -387,8 +463,12 @@ export default function App() {
             </p>
           </section>
 
-          <section id="results" aria-labelledby="next" aria-live="polite" className="mt-8">
-            <h2 id="next" className="mb-4 text-[1.375rem] font-semibold">Your next read</h2>
+          <section
+            id="results" aria-labelledby="next" aria-live="polite"
+            className="rise lg:col-span-7"
+            style={{ animationDelay: '440ms' }}
+          >
+            <h2 id="next" className="display mb-5 text-[2rem]">Your next read</h2>
 
             {!shown ? (
               <p className="rounded-2xl border border-dashed border-line bg-surface p-6 text-muted">
@@ -426,7 +506,7 @@ export default function App() {
                           {deferred && <Badge tone="amber">{USAGE_COPY.DEFER}</Badge>}
                         </div>
 
-                        <h3 className="text-[1.25rem] leading-snug font-semibold">{item.work.title}</h3>
+                        <h3 className="book-voice text-[2rem]">{item.work.title}</h3>
                         <p className="text-muted">
                           <button
                             type="button"
@@ -438,8 +518,11 @@ export default function App() {
                           {' '}· more from this author
                         </p>
 
-                        {/* Plain English first, before any of Nidus's own reasoning. */}
-                        <p className="mt-3 max-w-[62ch] text-[17px]">{item.profile.inOneLine}</p>
+                        {/* Plain English first, before any of Nidus's own reasoning, and
+                            set in the book's own voice rather than the interface's. */}
+                        <p className="book-voice mt-4 max-w-[36ch] text-[1.5rem] text-ink">
+                          {item.profile.inOneLine}
+                        </p>
 
                         {item.work.popularity && (
                           <p className="mt-2 text-[15px] text-muted">
@@ -448,7 +531,13 @@ export default function App() {
                           </p>
                         )}
 
-                        <p className="mt-3 max-w-[62ch] text-[15px] text-muted">{d.whyThisBook}</p>
+                        {/* For a close match this sentence is word-for-word the purpose row
+                            of the arithmetic below, so printing it twice is noise. It is
+                            kept for the exploration slot, where it carries the "offered as
+                            a different direction" framing the bars cannot. */}
+                        {d.role === 'exploration' && (
+                          <p className="mt-4 max-w-[54ch] text-[15px] text-muted">{d.whyThisBook}</p>
+                        )}
 
                         {deferred && d.deferReason && (
                           <p className="mt-3 max-w-[62ch] rounded-lg border border-amber bg-amber-soft p-3 text-[15px]">
@@ -498,30 +587,16 @@ export default function App() {
                           </div>
                         </details>
 
-                        <details className="mt-3">
-                          <summary className="min-h-11 cursor-pointer py-2 text-[16px] font-medium text-accent">
-                            Why this book?
-                          </summary>
-                          <table className="mt-2 w-full text-[15px]">
-                            <caption className="sr-only">Score components for {item.work.title}</caption>
-                            <tbody>
-                              {d.components.map((c) => (
-                                <tr key={c.signal} className="border-b border-line last:border-0">
-                                  <td className="py-2 pr-3 align-top text-muted">{c.text}</td>
-                                  <td className="py-2 text-right align-top font-medium tabular-nums whitespace-nowrap">
-                                    {c.points > 0 ? '+' : ''}{c.points}
-                                    <span className="text-muted"> / {c.maxPoints}</span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <p className="mt-3 max-w-[62ch] text-[14px] text-muted">
-                            {d.score} out of 100 on the {d.branch} ranker. This is a rule total, not a
-                            prediction that the book will work for you. Popularity and sales figures move
-                            none of it. Ranker {d.rankerVersion}, catalogue {d.catalogueVersion}.
-                          </p>
-                        </details>
+                        {/* key: remount on a new decision so the bars fill again rather
+                            than jumping to the new width with no arithmetic shown. */}
+                        <Reasoning
+                          key={`${d.workId}-${d.score}`}
+                          components={d.components}
+                          score={d.score}
+                          branch={d.branch}
+                          rankerVersion={d.rankerVersion}
+                          catalogueVersion={d.catalogueVersion}
+                        />
 
                         <details className="mt-3 rounded-xl border border-amber bg-amber-soft p-3">
                           <summary className="label-caps min-h-11 cursor-pointer py-2 text-amber">
@@ -586,9 +661,10 @@ export default function App() {
               </p>
             )}
           </section>
+         </div>
 
-          <section aria-labelledby="vs" className="mt-10 rounded-2xl border border-line bg-surface p-5 sm:p-7">
-            <h2 id="vs" className="text-[1.375rem] font-semibold">Why not just ask a chatbot?</h2>
+          <section aria-labelledby="vs" className="mt-16 rounded-2xl border border-line bg-surface p-6 sm:p-10">
+            <h2 id="vs" className="display text-[2rem]">Why not just ask a chatbot?</h2>
             <p className="mt-3 max-w-[62ch] text-muted">
               Fair question, and a general assistant will give you a longer list faster. Four things
               are different here, and only the first three are true in this build.
