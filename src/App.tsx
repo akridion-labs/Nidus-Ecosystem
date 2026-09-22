@@ -91,6 +91,71 @@ const USAGE_COPY: Record<RecommendationDecision['recommendedUsage'], string> = {
 }
 
 /* ---------------------------------------------------------------- *
+ * The cold open.
+ *
+ * The page used to begin with a form: seven fieldsets of cost before a single
+ * thing was given. Nobody is curious about a form. It begins instead with a
+ * situation, and the only question is whether it is yours.
+ *
+ * These are NOT quotations. Nothing from a book appears here — a recommender
+ * that opens by reprinting someone else's paragraph has a copyright problem
+ * and, worse, is borrowing the interest instead of earning it. Each line
+ * describes the READER. Recognition is the hook; the book is the payoff.
+ *
+ * Each opening is a real brief. Tapping one fills the form in front of you,
+ * which is the moment the product explains itself: you can see your evening
+ * being turned into a purpose, a mode and a number of minutes.
+ */
+type Opening = {
+  id: string
+  line: string
+  short: string
+  brief: {
+    purpose: Purpose; mode: Mode; sessionMinutes: number
+    stage?: FounderStage; activeApplyBooks?: number
+  }
+}
+
+const OPENINGS: Opening[] = [
+  {
+    id: 'decision',
+    line: 'It is 11:40pm. You have twenty minutes, and a decision you have been avoiding for nine days.',
+    short: 'A decision you keep avoiding',
+    brief: { purpose: 'decision', mode: 'apply', sessionMinutes: 20 },
+  },
+  {
+    id: 'no-one-paid',
+    line: 'Three people told you they loved it. Nobody has paid you yet.',
+    short: 'Everyone loves it, nobody pays',
+    brief: { purpose: 'company-building', mode: 'apply', sessionMinutes: 20, stage: 'VALIDATE' },
+  },
+  {
+    id: 'phone-won',
+    line: 'You have read four pages in two weeks. Your phone has read thousands.',
+    short: 'The phone is winning',
+    brief: { purpose: 'unwind', mode: 'enjoy', sessionMinutes: 10 },
+  },
+  {
+    id: 'train',
+    line: 'The train is forty minutes late and there is no signal on this platform.',
+    short: 'Forty minutes, no signal',
+    brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 45 },
+  },
+  {
+    id: 'managing',
+    line: 'You have been managing people for two months and nobody warned you what it would feel like.',
+    short: 'Two months of managing people',
+    brief: { purpose: 'company-building', mode: 'apply', sessionMinutes: 20, stage: 'OPERATE_LEAD' },
+  },
+  {
+    id: 'same-tab',
+    line: 'You keep opening the same tab instead of doing the work.',
+    short: 'Opening the same tab again',
+    brief: { purpose: 'craft', mode: 'apply', sessionMinutes: 30 },
+  },
+]
+
+/* ---------------------------------------------------------------- *
  * Primitives
  * ---------------------------------------------------------------- */
 
@@ -128,6 +193,38 @@ function Choice<T extends string | number>({
 }
 
 /**
+ * The trace.
+ *
+ * The brief asks for a visible step-by-step mapping from the reader's
+ * situation to the books. This is that, with one rule: every number here is a
+ * real number taken from the ranking that just ran. A progress bar that counts
+ * to 100 while nothing happens is the thing this is not.
+ */
+function Trace({ total, ruledOut, purpose, mode, minutes }: {
+  total: number; ruledOut: number; purpose: string; mode: string; minutes: number
+}) {
+  const steps = [
+    `Read your situation`,
+    `Brief: ${purpose} · ${mode} · ${minutes} min`,
+    `${total} books · ${ruledOut} ruled out · ${total - ruledOut} scored`,
+  ]
+  return (
+    <ol className="mb-5 space-y-1">
+      {steps.map((t, i) => (
+        <li
+          key={t}
+          className="rise label-caps flex items-center gap-2 text-muted"
+          style={{ animationDelay: `${i * 220}ms` }}
+        >
+          <span aria-hidden className="inline-block h-px w-5 bg-accent" />
+          {t}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/**
  * The signature moment: the arithmetic, performed.
  *
  * This is the one thing Nidus does that a chatbot structurally cannot, so it
@@ -158,7 +255,12 @@ function Reasoning({
           return (
             <li key={c.signal}>
               <div className="flex items-baseline justify-between gap-4">
-                <span className="label-caps text-ink">{c.signal.replace(/-/g, ' ')}</span>
+                {/* Signal names arrive as kebab-case from one branch and camelCase
+                    from the other, so both are split — "timeDifficulty" read as
+                    TIMEDIFFICULTY in the first build. */}
+                <span className="label-caps text-ink">
+                  {c.signal.replace(/-/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')}
+                </span>
                 <span className="text-[15px] font-medium tabular-nums whitespace-nowrap">
                   {c.points > 0 ? '+' : ''}{c.points}
                   <span className="text-muted"> / {c.maxPoints}</span>
@@ -226,6 +328,34 @@ export default function App() {
   // as a bundle to get through, not as an answer to the question asked.
   const [revealed, setRevealed] = useState(1)
 
+  const [openingId, setOpeningId] = useState(OPENINGS[0].id)
+  // Bumped on every answer so the trace and the arithmetic replay rather than
+  // silently swapping to new values.
+  const [runId, setRunId] = useState(0)
+  const [formOpen, setFormOpen] = useState(false)
+  // Books the reader has taken. This is the memory claim, honestly scoped:
+  // it lasts until reload, and the page says so rather than implying more.
+  const [taken, setTaken] = useState<string[]>([])
+
+  const opening = OPENINGS.find((o) => o.id === openingId)!
+
+  function answer() {
+    setShown(true)
+    setRevealed(1)
+    setRunId((n) => n + 1)
+  }
+
+  function applyOpening(o: Opening) {
+    setOpeningId(o.id)
+    setPurpose(o.brief.purpose)
+    setMode(o.brief.mode)
+    setSessionMinutes(o.brief.sessionMinutes)
+    if (o.brief.stage) setStage(o.brief.stage)
+    setActiveApplyBooks(o.brief.activeApplyBooks ?? 0)
+    setAuthor(null)
+    answer()
+  }
+
   const asksFounder = purpose === 'company-building'
 
   const brief: Brief = useMemo(
@@ -250,11 +380,6 @@ export default function App() {
   const languageLabel = LANGUAGES.find((l) => l.tag === language)?.label ?? language
   const visible = result.decisions.slice(0, revealed)
   const more = result.decisions.length - visible.length
-
-  function restart() {
-    setShown(true)
-    setRevealed(1)
-  }
 
   const GAP_COPY: Record<CoverageGap, { head: string; body: string }> = {
     language: {
@@ -288,35 +413,69 @@ export default function App() {
         {/* Grid break: the headline runs the full width, the sentence under it
             sits in the last five columns. Centring both would be safe and
             would say nothing. */}
-        <header className="grid gap-5 pt-12 pb-10 lg:grid-cols-12 lg:gap-x-8 lg:pt-20 lg:pb-16">
-          <div className="rise lg:col-span-6">
+        <header className="pt-10 pb-8 lg:pt-16 lg:pb-12">
+          <div className="rise flex flex-wrap items-baseline justify-between gap-2">
             <p className="label-caps text-accent">Nidus</p>
-            <p className="mt-1 text-[15px] text-muted">Read alone. Grow together.</p>
+            <p className="label-caps text-muted">One book · not a reading list</p>
           </div>
+
+          {/* The cold open. The situation is the headline; the product is the
+              answer to it. Nothing is asked before something is offered. */}
           <h1
-            className="display rise text-[clamp(2.75rem,10vw,5.25rem)] lg:col-span-12"
-            style={{ animationDelay: '90ms' }}
+            key={opening.id}
+            className="display rise mt-8 max-w-[19ch] text-[clamp(2.25rem,7.5vw,4.25rem)]"
+            style={{ animationDelay: '80ms' }}
           >
-            One book.<span className="block text-muted">Not a reading list.</span>
+            {opening.line}
           </h1>
-          <p
-            className="rise max-w-[48ch] text-muted lg:col-span-5 lg:col-start-8"
-            style={{ animationDelay: '240ms' }}
-          >
-            Tell Nidus what today actually looks like. It answers with a single book, the arithmetic
-            that chose it, and what the book cannot do for you. Nothing on this page is saved —
-            reload and Nidus forgets you were here.
-          </p>
+
+          <div className="rise mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: '260ms' }}>
+            <button
+              type="button"
+              onClick={() => applyOpening(opening)}
+              className="transition-ui min-h-12 rounded-xl bg-accent px-6 text-[17px] font-semibold text-surface hover:opacity-90 active:scale-[0.98]"
+            >
+              That is my evening — find the book
+            </button>
+            <span className="text-[15px] text-muted">One tap. No account, nothing to fill in.</span>
+          </div>
+
+          <div className="rise mt-7" style={{ animationDelay: '380ms' }}>
+            <p className="label-caps mb-2 text-muted">Or another evening</p>
+            <div className="flex flex-wrap gap-2">
+              {OPENINGS.filter((o) => o.id !== opening.id).map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => applyOpening(o)}
+                  className="transition-ui min-h-11 rounded-xl border border-line bg-surface px-4 text-[15px] text-muted hover:-translate-y-px hover:border-accent hover:text-ink"
+                >
+                  {o.short}
+                </button>
+              ))}
+            </div>
+          </div>
         </header>
 
         <main className="pb-24">
          <div className="grid items-start gap-8 lg:grid-cols-12 lg:gap-12">
           <section
             aria-labelledby="moment"
-            className="rise rounded-2xl border border-line bg-surface p-5 sm:p-7 lg:col-span-5"
-            style={{ animationDelay: '360ms' }}
+            className="order-2 rounded-2xl border border-line bg-surface lg:order-1 lg:col-span-5"
           >
-            <h2 id="moment" className="display mb-6 text-[1.75rem]">Your moment</h2>
+            <button
+              type="button"
+              onClick={() => setFormOpen((v) => !v)}
+              aria-expanded={formOpen}
+              className="transition-ui flex min-h-14 w-full items-center justify-between gap-3 px-5 text-left sm:px-7"
+            >
+              <span>
+                <span id="moment" className="display block text-[1.5rem]">Tune it yourself</span>
+                <span className="text-[15px] text-muted">Language, format, budget, your venture</span>
+              </span>
+              <span aria-hidden className="text-[22px] text-accent">{formOpen ? '\u2212' : '+'}</span>
+            </button>
+            <div className={formOpen ? 'block px-5 pb-6 sm:px-7' : 'hidden'}>
 
             <Field legend="Purpose" layout="grid">
               {PURPOSES.map((p) => (
@@ -453,7 +612,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={restart}
+              onClick={answer}
               className="transition-ui min-h-12 w-full rounded-xl bg-accent px-6 text-[17px] font-semibold text-surface hover:opacity-90 sm:w-auto"
             >
               Find my next read
@@ -461,18 +620,29 @@ export default function App() {
             <p className="mt-3 text-[15px] text-muted">
               Adding a book you already own arrives with My&nbsp;Shelf. It is not in this build.
             </p>
+            </div>
           </section>
 
           <section
             id="results" aria-labelledby="next" aria-live="polite"
-            className="rise lg:col-span-7"
-            style={{ animationDelay: '440ms' }}
+            className="order-1 lg:order-2 lg:col-span-7"
           >
             <h2 id="next" className="display mb-5 text-[2rem]">Your next read</h2>
 
+            {shown && result.decisions.length > 0 && (
+              <Trace
+                key={`trace-${runId}`}
+                total={catalogue.items.length}
+                ruledOut={result.excluded.length}
+                purpose={PURPOSE_COPY[purpose]}
+                mode={MODE_COPY[mode].label}
+                minutes={sessionMinutes}
+              />
+            )}
+
             {!shown ? (
               <p className="rounded-2xl border border-dashed border-line bg-surface p-6 text-muted">
-                Nothing suggested yet. Set your moment above, then choose <em>Find my next read</em>.
+                Nothing yet. Pick the evening that sounds like yours, above.
               </p>
             ) : result.gap !== null ? (
               <div className="rounded-2xl border border-amber bg-amber-soft p-6">
@@ -510,7 +680,7 @@ export default function App() {
                         <p className="text-muted">
                           <button
                             type="button"
-                            onClick={() => { setAuthor(item.work.author); restart() }}
+                            onClick={() => { setAuthor(item.work.author); answer() }}
                             className="underline underline-offset-2 hover:text-ink"
                           >
                             {item.work.author}
@@ -610,7 +780,10 @@ export default function App() {
                         <div className="mt-5 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => setChosen(d.workId)}
+                            onClick={() => {
+                              setChosen(d.workId)
+                              setTaken((prev) => prev.includes(d.workId) ? prev : [...prev, d.workId])
+                            }}
                             aria-pressed={chosen === d.workId}
                             className="transition-ui min-h-11 rounded-xl bg-accent px-5 text-[16px] font-semibold text-surface hover:opacity-90"
                           >
@@ -649,6 +822,52 @@ export default function App() {
                   </button>
                 )}
               </>
+            )}
+
+            {/* The reason to come back, stated at the moment of most interest and
+                scoped honestly. This is the memory claim made visible: a chatbot
+                re-suggests the same book in a month, and this is what stops it.
+                The strip says out loud that this copy lasts until reload — the
+                promise is only worth making if the limit is admitted with it. */}
+            {taken.length > 0 && (
+              <div className="rise mt-6 rounded-2xl border border-accent bg-accent-soft p-5">
+                <p className="label-caps text-accent">What Nidus now knows</p>
+                <ul className="mt-3 space-y-1">
+                  {taken.map((id) => (
+                    <li key={id} className="text-[15px]">
+                      You took <span className="font-medium">{items[id]?.work.title ?? id}</span>. It
+                      will not be offered to you again.
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 max-w-[54ch] text-[14px] text-muted">
+                  In this build that lasts until you reload the page. The version that keeps it for
+                  years is built and tested in the server, and is not connected here yet. It is the
+                  whole reason Nidus is not a chat window.
+                </p>
+              </div>
+            )}
+
+            {/* One gap left deliberately open. */}
+            {shown && result.decisions.length > 0 && (
+              <div className="mt-6 border-t border-line pt-5">
+                <p className="text-[15px] text-muted">
+                  {OPENINGS.length - 1} other evenings are in here. One of them is probably closer to
+                  the reason you opened this tab.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {OPENINGS.filter((o) => o.id !== openingId).slice(0, 3).map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => applyOpening(o)}
+                      className="transition-ui min-h-11 rounded-xl border border-line bg-surface px-4 text-[15px] text-muted hover:-translate-y-px hover:border-accent hover:text-ink"
+                    >
+                      {o.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {rejections.length > 0 && (
