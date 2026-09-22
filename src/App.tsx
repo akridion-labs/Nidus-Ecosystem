@@ -8,11 +8,12 @@ import type {
   RecommendationDecision, RejectionReason, ResultRole, ReadingBrief as Brief,
 } from './domain/contracts.ts'
 import { catalogue } from './data/catalogue.ts'
+import { Wordmark } from './brand/Wordmark.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
 import type { Shelf } from './domain/shelves.ts'
-import type { CoverageGap } from './domain/ranker.ts'
+import type { CoverageGap, Ineligible } from './domain/ranker.ts'
 
 /* ---------------------------------------------------------------- *
  * Copy. Wording comes from the UI brief and the wireframe, not from
@@ -290,34 +291,74 @@ function Choice<T extends string | number>({
 }
 
 /**
- * The trace.
+ * The trace — a librarian going to the shelves and coming back.
  *
  * The brief asks for a visible step-by-step mapping from the reader's
- * situation to the books. This is that, with one rule: every number here is a
- * real number taken from the ranking that just ran. A progress bar that counts
- * to 100 while nothing happens is the thing this is not.
+ * situation to the books, and the temptation is a spinner that counts to 100
+ * while nothing happens. This does the opposite: it NAMES the books it is
+ * putting back and says why, because that is information the reader could not
+ * get anywhere else and it happens to look exactly like someone working.
+ *
+ * The single rule: every line is a fact from the ranking that just ran. The
+ * titles are real, the reasons are the real eligibility failures, the counts
+ * are real. Nothing here is padded to make the wait feel longer — the ranking
+ * takes about 0.04ms, and the animation is there so a person can follow a
+ * decision that would otherwise be instantaneous and invisible.
  */
-function Trace({ total, ruledOut, purpose, mode, minutes }: {
-  total: number; ruledOut: number; purpose: string; mode: string; minutes: number
+function Trace({ total, excluded, purpose, mode, minutes, scored }: {
+  total: number
+  excluded: Ineligible[]
+  purpose: string
+  mode: string
+  minutes: number
+  scored: number
 }) {
-  const steps = [
-    `Read your situation`,
-    `Brief: ${purpose} · ${mode} · ${minutes} min`,
-    `${total} books · ${ruledOut} ruled out · ${total - ruledOut} scored`,
-  ]
+  // Four books, named, with the actual reason each was put back. Cap at four
+  // because the point is "you can see it happening", not "read this list".
+  const shown = excluded.slice(0, 4)
+  const rest = excluded.length - shown.length
+
   return (
-    <ol className="mb-5 space-y-1">
-      {steps.map((t, i) => (
-        <li
-          key={t}
-          className="rise label-caps flex items-center gap-2 text-muted"
-          style={{ animationDelay: `${i * 220}ms` }}
-        >
-          <span aria-hidden className="inline-block h-px w-5 bg-accent" />
-          {t}
+    <div className="mb-6 rounded-2xl border border-line bg-surface/70 p-4">
+      <p className="label-caps flex items-center gap-2 text-muted">
+        <span className="dot-pulse" aria-hidden /> Checking the shelves
+      </p>
+
+      <ol className="mt-3 space-y-2">
+        <li className="rise text-[15px]" style={{ animationDelay: '0ms' }}>
+          Read your situation — <span className="text-muted">{purpose} · {mode} · {minutes} min</span>
         </li>
-      ))}
-    </ol>
+        <li className="rise text-[15px]" style={{ animationDelay: '260ms' }}>
+          Took {total} books off the shelf.
+        </li>
+        {shown.map((x, i) => (
+          <li
+            key={x.item.work.id}
+            className="rise flex gap-2 text-[14px] text-muted line-through decoration-line"
+            style={{ animationDelay: `${420 + i * 130}ms` }}
+          >
+            <span aria-hidden>—</span>
+            <span className="no-underline">
+              Put back <span className="text-ink">{x.item.work.title}</span>: {x.reason}.
+            </span>
+          </li>
+        ))}
+        {rest > 0 && (
+          <li
+            className="rise text-[14px] text-muted"
+            style={{ animationDelay: `${420 + shown.length * 130}ms` }}
+          >
+            …and {rest} more, for reasons you can ask about.
+          </li>
+        )}
+        <li
+          className="rise text-[15px] font-medium"
+          style={{ animationDelay: `${520 + shown.length * 130}ms` }}
+        >
+          Carried {scored} to the desk. Scoring them now.
+        </li>
+      </ol>
+    </div>
   )
 }
 
@@ -512,6 +553,7 @@ export default function App() {
           `transform` animates, nothing here is interactive, and reduced motion
           stops it dead. */}
       <div className="livewash" aria-hidden><span /><span /><span /></div>
+      <div className="grain" aria-hidden />
       <a
         href="#results"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-10 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3"
@@ -519,13 +561,13 @@ export default function App() {
         Skip to the book
       </a>
 
-      <div className="mx-auto max-w-[76rem] px-4 sm:px-6 lg:px-10">
+      <div className="relative z-[1] mx-auto max-w-[76rem] px-4 sm:px-6 lg:px-10">
         {/* Grid break: the headline runs the full width, the sentence under it
             sits in the last five columns. Centring both would be safe and
             would say nothing. */}
         <header className="pt-10 pb-8 lg:pt-16 lg:pb-12">
           <div className="rise flex flex-wrap items-baseline justify-between gap-2">
-            <p className="label-caps text-accent">Nidus</p>
+            <Wordmark />
             <p className="label-caps text-muted">One book · not a reading list</p>
           </div>
 
@@ -743,7 +785,8 @@ export default function App() {
               <Trace
                 key={`trace-${runId}`}
                 total={catalogue.items.length}
-                ruledOut={result.excluded.length}
+                excluded={result.excluded}
+                scored={catalogue.items.length - result.excluded.length}
                 purpose={PURPOSE_COPY[purpose]}
                 mode={MODE_COPY[mode].label}
                 minutes={sessionMinutes}
