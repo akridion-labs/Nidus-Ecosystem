@@ -7,7 +7,41 @@
     <title>Nidus — Read alone. Grow together.</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      The cold open, in static HTML.
+
+      The module script below is deferred, so this paints before any JavaScript
+      parses — on mobile data that is the difference between a headline and a
+      blank screen. React replaces it wholesale on mount with the identical
+      markup, so there is no flash of different content and no hydration to get
+      wrong. It is also what a crawler and a JS-disabled browser see.
+
+      It must stay in step with OPENINGS[0] in src/App.tsx. A test asserts it.
+    -->
+    <div id="root">
+      <div class="min-h-dvh bg-paper">
+        <div class="relative z-[1] mx-auto max-w-[76rem] px-4 sm:px-6 lg:px-10">
+          <header class="pt-10 pb-8 lg:pt-16 lg:pb-12">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <span class="inline-flex items-center gap-2 text-accent">
+                <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden class="shrink-0 overflow-visible">
+                  <g fill="none" stroke="currentColor" stroke-linecap="round">
+                    <path d="M4 18a12 8 0 0 0 24 0" stroke-width="2.2"/>
+                    <path d="M7.5 16.2a8.5 6 0 0 0 17 0" stroke-width="1.8" opacity=".7"/>
+                    <path d="M11 14.6a5 4 0 0 0 10 0" stroke-width="1.5" opacity=".45"/>
+                  </g>
+                  <circle cx="16" cy="10.5" r="3" fill="currentColor"/>
+                </svg>
+                <span class="text-[1.375rem] leading-none" style="font-family:var(--font-display);letter-spacing:.16em">NIDUS</span>
+              </span>
+              <p class="label-caps text-muted">One book · not a reading list</p>
+            </div>
+            <h1 class="display mt-8 max-w-[19ch] text-[clamp(2.25rem,7.5vw,4.25rem)]">It is 11:40pm. You have twenty minutes, and a decision you have been avoiding for nine days.</h1>
+            <p class="mt-8 text-[15px] text-muted">One tap. No account, nothing to fill in.</p>
+          </header>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
