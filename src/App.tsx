@@ -86,10 +86,10 @@ const ROLE_COPY: Record<ResultRole, string> = {
   exploration: 'A different direction',
 }
 
-const USAGE_COPY: Record<RecommendationDecision['recommendedUsage'], string> = {
+// WORKBOOK_REFERENCE is omitted: usageFor never returns it in this build.
+const USAGE_COPY: Partial<Record<RecommendationDecision['recommendedUsage'], string>> = {
   FULL_READ: 'Read it through',
   SELECTED_CHAPTERS: 'Selected chapters only',
-  WORKBOOK_REFERENCE: 'Keep as a reference',
   DEFER: 'Not yet',
 }
 
@@ -174,15 +174,17 @@ function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
       </div>
 
       {/* Index tabs, like the dividers in a card catalogue. */}
-      <div role="tablist" aria-label="Shelves" className="mt-6 flex flex-wrap gap-2">
+      {/* Not role="tablist". That role promises arrow-key navigation, a roving
+          tabindex and a linked tabpanel; announcing "tab 3 of 7" and then doing
+          none of it is worse than plain buttons, which is what these are. */}
+      <div className="mt-6 flex flex-wrap gap-2">
         {SHELVES.map((x) => {
           const count = shelfItems(catalogue, x).length
           const on = x.id === openId
           return (
             <button
               key={x.id}
-              role="tab"
-              aria-selected={on}
+              aria-pressed={on}
               type="button"
               onClick={() => setOpenId(x.id)}
               className={[
@@ -277,7 +279,10 @@ function Choice<T extends string | number>({
   return (
     <label
       className={[
+        // The radio itself is sr-only, so :focus-visible would land on a clipped
+        // 1x1 element and show nothing. The label wears the ring instead.
         'transition-ui flex min-h-11 cursor-pointer flex-col justify-center rounded-xl border px-4 py-2',
+        'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-accent',
         selected
           ? 'border-accent bg-accent-soft text-ink'
           : 'border-line bg-surface text-muted hover:border-accent hover:text-ink',
@@ -460,7 +465,17 @@ export default function App() {
   const [activeApplyBooks, setActiveApplyBooks] = useState(0)
 
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
-  const [chosen, setChosen] = useState<string | null>(null)
+  // Books the reader has taken. Recorded as a COMPLETED intent, which is what
+  // the ranker's eligibility gate already reads — so the promise on screen
+  // ("it will not be offered to you again") is enforced by the same code path
+  // that enforces everything else, and the trace even shows the book being put
+  // back with "already finished" as the reason.
+  const [taken, setTaken] = useState<string[]>([])
+  // The book just taken, held so the results area can show a completion rather
+  // than silently re-ranking. Without this, choosing a book makes its own card
+  // vanish — it becomes ineligible the instant it is taken, which is correct
+  // behaviour shown at exactly the wrong moment.
+  const [justTook, setJustTook] = useState<string | null>(null)
   const [shown, setShown] = useState(false)
   // One book at a time. The feedback was explicit: a stack of three cards reads
   // as a bundle to get through, not as an answer to the question asked.
@@ -471,13 +486,12 @@ export default function App() {
   // silently swapping to new values.
   const [runId, setRunId] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
-  // Books the reader has taken. This is the memory claim, honestly scoped:
-  // it lasts until reload, and the page says so rather than implying more.
-  const [taken, setTaken] = useState<string[]>([])
+
 
   const opening = OPENINGS.find((o) => o.id === openingId)!
 
   function answer() {
+    setJustTook(null)
     setShown(true)
     setRevealed(1)
     setRunId((n) => n + 1)
@@ -503,7 +517,11 @@ export default function App() {
     answer()
   }
 
-  const asksFounder = purpose === 'company-building'
+  // Must match the ranker's own founder-branch condition exactly. When it did
+  // not, the venture questions appeared in Explore and Enjoy mode, were parsed
+  // into the brief, and were then read by nothing — a reader typed the decision
+  // in front of them and watched the page ignore it.
+  const asksFounder = purpose === 'company-building' && mode === 'apply'
 
   const brief: Brief = useMemo(
     () =>
@@ -511,10 +529,11 @@ export default function App() {
         purpose, mode, language, sessionMinutes, formatPreference, budget, author,
         adultConfirmed: true,
         founderContext: asksFounder ? { stage, currentDecision, actionHoursPerWeek: 2, activeApplyBooks } : null,
+        intents: taken.map((workId) => ({ workId, status: 'COMPLETED' as const })),
         rejections,
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, taken],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -776,10 +795,19 @@ export default function App() {
           </section>
 
           <section
-            id="results" aria-labelledby="next" aria-live="polite"
+            id="results" aria-labelledby="next"
             className="order-1 lg:order-2 lg:col-span-7"
           >
             <h2 id="next" className="display mb-5 text-[2rem]">Your next read</h2>
+
+            {/* One line, announced. The whole column used to be the live region,
+                so every keystroke in the decision field re-announced several
+                hundred words — that field is quoted back inside the arithmetic. */}
+            <p aria-live="polite" className="sr-only">
+              {!shown ? '' : result.gap !== null ? GAP_COPY[result.gap].head
+                : result.decisions.length === 0 ? 'Nothing here fits that combination.'
+                : `Your next read: ${items[result.decisions[0].workId]?.work.title}.`}
+            </p>
 
             {shown && result.decisions.length > 0 && (
               <Trace
@@ -797,6 +825,18 @@ export default function App() {
               <p className="rounded-2xl border border-dashed border-line bg-surface p-6 text-muted">
                 Nothing yet. Pick the evening that sounds like yours, above.
               </p>
+            ) : justTook !== null ? (
+              <div className="rise rounded-2xl border border-accent bg-surface p-6 sm:p-8">
+                <p className="label-caps text-accent">Taken</p>
+                <h3 className="book-voice mt-2 text-[2rem]">{items[justTook]?.work.title}</h3>
+                <p className="book-voice mt-3 max-w-[34ch] text-[1.25rem] text-muted">
+                  {items[justTook]?.profile.inOneLine}
+                </p>
+                <p className="mt-5 max-w-[54ch]">
+                  That is the whole ask. Go and read it — there is no streak to keep, nothing to log,
+                  and nothing here that wants you back tonight.
+                </p>
+              </div>
             ) : result.gap !== null ? (
               <div className="rounded-2xl border border-amber bg-amber-soft p-6">
                 <p className="font-medium">{GAP_COPY[result.gap].head}</p>
@@ -838,7 +878,7 @@ export default function App() {
                           >
                             {item.work.author}
                           </button>
-                          {' '}· more from this author
+                          {' '}· browse this author
                         </p>
 
                         {/* Plain English first, before any of Nidus's own reasoning, and
@@ -934,13 +974,14 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => {
-                              setChosen(d.workId)
                               setTaken((prev) => prev.includes(d.workId) ? prev : [...prev, d.workId])
+                              setJustTook(d.workId)
+                              setRevealed(1)
                             }}
-                            aria-pressed={chosen === d.workId}
+                            aria-pressed={taken.includes(d.workId)}
                             className="transition-ui min-h-11 rounded-xl bg-accent px-5 text-[16px] font-semibold text-surface hover:opacity-90"
                           >
-                            {chosen === d.workId ? 'Chosen — nothing saved' : 'Choose this book'}
+                            {taken.includes(d.workId) ? 'Taken — it will not come back' : 'Choose this book'}
                           </button>
                           <details>
                             <summary className="transition-ui inline-flex min-h-11 cursor-pointer list-none items-center rounded-xl border border-line px-5 text-[16px] text-muted hover:text-ink">

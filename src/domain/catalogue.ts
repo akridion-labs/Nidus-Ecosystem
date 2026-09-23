@@ -142,7 +142,3 @@ export function editionIn(
 export function authorsIn(catalogue: LoadedCatalogue): string[] {
   return [...new Set(catalogue.items.map((i) => i.work.author))].sort()
 }
-
-export function isUnverified(item: CatalogueItem): boolean {
-  return item.work.provenance.confirmedAt === null
-}

@@ -6,6 +6,7 @@ import type { ReadingBrief as Brief } from '../src/domain/contracts.ts'
 import { loadCatalogue } from '../src/domain/catalogue.ts'
 import type { CatalogueItem, LoadedCatalogue } from '../src/domain/catalogue.ts'
 import { seedWorks, seedEditions, seedProfiles } from '../src/data/catalogue.seed.ts'
+import { brokenWorks, brokenEditions, brokenProfiles } from './broken-rows.ts'
 import { rank, isEligible, accessRoute, RANKER_VERSION } from '../src/domain/ranker.ts'
 
 const loaded = loadCatalogue(seedWorks, seedEditions, seedProfiles)
@@ -51,13 +52,24 @@ test('seed loads works with their editions and editorial profile assembled', () 
   }
 })
 
-test('every broken seed fixture is rejected with a reason, and nothing throws', () => {
-  const ids = loaded.rejected.map((r) => String(r.id)).sort()
+test('the shipped seed contains no rows that fail validation', () => {
+  // The honesty footer reports rejected rows to the reader. If a test fixture
+  // is in the seed, the footer reports the test suite.
+  assert.deepEqual(loaded.rejected, [], 'production catalogue must load cleanly')
+})
+
+test('every broken fixture is rejected with a reason, and nothing throws', () => {
+  const poisoned = loadCatalogue(
+    [...seedWorks, ...brokenWorks],
+    [...seedEditions, ...brokenEditions],
+    [...seedProfiles, ...brokenProfiles],
+  )
+  const ids = poisoned.rejected.map((r) => String(r.id)).sort()
   assert.ok(ids.includes('broken-work'), 'work with an empty title')
   assert.ok(ids.includes('broken-edition'), 'edition with no language')
   assert.ok(ids.includes('orphan-edition'), 'edition pointing at no work')
   assert.ok(ids.includes('siddhartha'), 'duplicate profile')
-  for (const r of loaded.rejected) assert.ok(r.problems.length > 0, `${r.id} must say why`)
+  for (const r of poisoned.rejected) assert.ok(r.problems.length > 0, `${r.id} must say why`)
 })
 
 test('facts and editorial inference carry separate provenance', () => {

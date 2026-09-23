@@ -195,10 +195,12 @@ body {
 }
 
 /* Keyboard use is a release requirement, not a nicety. */
+/* No border-radius here: setting it rewrites the focused element's own corners
+   (a rounded-xl button visibly snapped to 8px on keyboard focus). The outline
+   already follows the element's radius. */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
-  border-radius: 8px;
 }
 
 /* Brief: 150-250ms for local state changes, and nothing blocks the next action. */

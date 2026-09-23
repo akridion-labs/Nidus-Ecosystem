@@ -1,6 +1,12 @@
 /**
  * Seed rows are typed `unknown` on purpose: every row must survive validation
- * in loadCatalogue, including the fixtures at the end that must fail.
+ * in loadCatalogue.
+ *
+ * The deliberately-broken rows that prove bad data is rejected rather than
+ * crashing the catalogue used to live here. They shipped to production, and
+ * the honesty footer dutifully told every visitor that four catalogue rows had
+ * failed validation — reporting the test suite to the reader. They now live in
+ * tests/broken-rows.ts, which nothing in src/ imports.
  *
  * Facts (works, editions) and editorial inference (profiles) are separate
  * lists with separate provenance. NOTHING here is confirmed against a
@@ -25,8 +31,6 @@ export const seedWorks: unknown[] = [
   { id: 'old-man-sea', title: 'The Old Man and the Sea', author: 'Ernest Hemingway', firstPublished: 1952, fiction: true, provenance: DRAFT },
   { id: 'malgudi-days', title: 'Malgudi Days', author: 'R. K. Narayan', firstPublished: 1943, fiction: true, provenance: DRAFT },
   { id: 'train-to-pakistan', title: 'Train to Pakistan', author: 'Khushwant Singh', firstPublished: 1956, fiction: true, provenance: DRAFT },
-  // Fixture: must be rejected (no title).
-  { id: 'broken-work', title: '', author: 'Fixture', firstPublished: null, fiction: false, provenance: DRAFT },
 ]
 
 const ed = (id: string, workId: string, language: string) => ({
@@ -58,10 +62,6 @@ export const seedEditions: unknown[] = [
   ed('malgudi-days-en', 'malgudi-days', 'en'),
   ed('train-to-pakistan-en', 'train-to-pakistan', 'en'),
   ed('train-to-pakistan-hi', 'train-to-pakistan', 'hi'),
-  // Fixture: must be rejected (language too short).
-  { id: 'broken-edition', workId: 'lean-startup', language: '', isbn13: null, format: 'print', pages: null, provenance: DRAFT },
-  // Fixture: must be rejected (points at a work that does not exist).
-  ed('orphan-edition', 'no-such-work', 'en'),
 ]
 
 export const seedProfiles: unknown[] = [
@@ -182,12 +182,6 @@ export const seedProfiles: unknown[] = [
     conceptualDifficulty: 3, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 5,
     targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [], suggestedArtifact: null,
     provenance: { ...EDITORIAL, note: 'Contains Partition violence. Not restful reading.' },
-  },
-  // Fixture: must be rejected (difficulty out of range).
-  {
-    workId: 'siddhartha', inOneLine: 'Fixture row.', modes: ['enjoy'], topics: [], conceptualDifficulty: 9, typicalSessionMinutes: 10,
-    actionability: 0, emotionalIntensity: 0, targetStages: [], competencyTags: [], prerequisites: [],
-    tooEarlyStages: [], suggestedArtifact: null, provenance: EDITORIAL,
   },
 ]
 
