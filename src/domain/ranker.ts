@@ -11,7 +11,7 @@ import { PUBLIC_DOMAIN_WORKS } from '../data/catalogue.seed.ts'
  * and the catalogue version, so a changed recommendation can be explained
  * later instead of argued about.
  */
-export const RANKER_VERSION = 'nidus-ranker-0.3.0-pilot'
+export const RANKER_VERSION = 'nidus-ranker-0.4.0-pilot'
 
 /* ================================================================== *
  * 1. Eligibility — a binary gate that runs before any scoring.
@@ -22,7 +22,7 @@ export const RANKER_VERSION = 'nidus-ranker-0.3.0-pilot'
 export type Ineligible = { item: CatalogueItem; reason: string; kind: EligibilityFailure }
 export type EligibilityFailure =
   | 'audience' | 'language' | 'format' | 'budget' | 'author'
-  | 'mode' | 'completed' | 'rejected' | 'deferred'
+  | 'mode' | 'completed' | 'reading' | 'rejected' | 'deferred'
 
 export function isEligible(
   item: CatalogueItem,
@@ -53,6 +53,12 @@ export function isEligible(
   const intent = brief.intents.find((i) => i.workId === item.work.id)
   if (intent?.status === 'COMPLETED' && !brief.revisitCompleted) {
     return { ok: false, kind: 'completed', reason: 'already finished' }
+  }
+  // A book you are in the middle of is not your NEXT read. Nidus offering it
+  // again would be the recommender equivalent of a colleague reminding you
+  // about the thing you are currently doing.
+  if (intent?.status === 'READING') {
+    return { ok: false, kind: 'reading', reason: 'already on your pile' }
   }
   if (intent?.status === 'DEFERRED') {
     return { ok: false, kind: 'deferred', reason: 'you set this aside for later' }
@@ -302,6 +308,62 @@ function missingPrerequisites(item: CatalogueItem, brief: ReadingBrief): string[
     const intent = brief.intents.find((i) => i.workId === id)
     return intent?.status !== 'COMPLETED'
   })
+}
+
+/**
+ * What finishing a book opens.
+ *
+ * The catalogue already records prerequisites — The Hard Thing About Hard
+ * Things assumes The Lean Startup — and until now nothing ever showed a reader
+ * that finishing one thing had moved another within reach. This is the whole
+ * "what happens after the last chapter" question, answered from data that was
+ * already there.
+ *
+ * Two kinds of answer, and the second one matters more than the first:
+ *   `ready`   — every prerequisite is now finished, and no stage gate blocks it
+ *   `stillEarly` — the reading is done but the SITUATION has not happened yet
+ *
+ * The second is the honest half. Finishing a book about validation does not
+ * make a book about firing people useful; living through it does. A product
+ * that treated reading as the only gate would be selling the idea that you can
+ * read your way around experience, which is the thing this catalogue's own
+ * notes keep warning about.
+ */
+export type Unlocked = {
+  ready: CatalogueItem[]
+  stillEarly: { item: CatalogueItem; because: string }[]
+}
+
+export function unlockedBy(
+  catalogue: LoadedCatalogue,
+  workId: string,
+  brief: ReadingBrief,
+): Unlocked {
+  const finished = new Set(
+    brief.intents.filter((i) => i.status === 'COMPLETED').map((i) => i.workId),
+  )
+  finished.add(workId)
+
+  const ready: CatalogueItem[] = []
+  const stillEarly: { item: CatalogueItem; because: string }[] = []
+
+  for (const item of catalogue.items) {
+    const prereqs = item.profile.prerequisites
+    if (!prereqs.includes(workId)) continue
+    if (finished.has(item.work.id)) continue
+    if (!prereqs.every((id) => finished.has(id))) continue
+
+    const stage = brief.founderContext?.stage
+    if (stage && item.profile.tooEarlyStages.includes(stage)) {
+      stillEarly.push({
+        item,
+        because: `You have done the reading it assumes. It still waits on the situation — this one is premature while ${STAGE_WORD[stage]}.`,
+      })
+      continue
+    }
+    ready.push(item)
+  }
+  return { ready, stillEarly }
 }
 
 /* ================================================================== *

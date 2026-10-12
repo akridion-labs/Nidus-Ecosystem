@@ -8,9 +8,10 @@ import type {
   RecommendationDecision, RejectionReason, ResultRole, ReadingBrief as Brief,
 } from './domain/contracts.ts'
 import { catalogue } from './data/catalogue.ts'
+import type { CatalogueItem } from './domain/catalogue.ts'
 import { Wordmark } from './brand/Wordmark.tsx'
 import { authorsIn } from './domain/catalogue.ts'
-import { rank } from './domain/ranker.ts'
+import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
 import type { Shelf } from './domain/shelves.ts'
 import type { CoverageGap, Ineligible } from './domain/ranker.ts'
@@ -432,6 +433,56 @@ function Reasoning({
   )
 }
 
+/**
+ * What finishing opened — the answer to "and then what?", which before this
+ * was nothing: the road ended at "chosen".
+ *
+ * Both halves are shown, including the half that says a book is still out of
+ * reach. A product that only ever reported unlocks would be teaching its
+ * readers that finishing books is how situations get handled.
+ */
+function Unlocks({ workId, brief, items }: {
+  workId: string
+  brief: Brief
+  items: Record<string, CatalogueItem>
+}) {
+  const { ready, stillEarly } = unlockedBy(catalogue, workId, brief)
+  if (ready.length === 0 && stillEarly.length === 0) {
+    return (
+      <div className="mt-6 border-t border-line pt-5">
+        <p className="label-caps text-muted">What this opened</p>
+        <p className="mt-2 max-w-[54ch] text-[15px] text-muted">
+          Nothing in this catalogue was waiting on it. That is a fact about a catalogue of fourteen
+          books, not about the reading — most of what you learn has no next page.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <p className="label-caps text-accent">What this opened</p>
+      <ul className="mt-3 space-y-4">
+        {ready.map((item) => (
+          <li key={item.work.id} className="rise">
+            <p className="book-voice text-[1.25rem]">{item.work.title}</p>
+            <p className="text-[14px] text-muted">{item.work.author}</p>
+            <p className="mt-1 max-w-[52ch] text-[15px]">{item.profile.inOneLine}</p>
+            <p className="mt-1 max-w-[52ch] text-[14px] text-muted">
+              It assumed {items[workId]?.work.title}. You have that now.
+            </p>
+          </li>
+        ))}
+        {stillEarly.map(({ item, because }) => (
+          <li key={item.work.id} className="rise rounded-xl border border-amber bg-amber-soft p-4">
+            <p className="book-voice text-[1.25rem]">{item.work.title}</p>
+            <p className="mt-1 max-w-[52ch] text-[15px]">{because}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function Badge({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'amber' }) {
   return (
     <span
@@ -465,12 +516,15 @@ export default function App() {
   const [activeApplyBooks, setActiveApplyBooks] = useState(0)
 
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
-  // Books the reader has taken. Recorded as a COMPLETED intent, which is what
-  // the ranker's eligibility gate already reads — so the promise on screen
-  // ("it will not be offered to you again") is enforced by the same code path
-  // that enforces everything else, and the trace even shows the book being put
-  // back with "already finished" as the reason.
-  const [taken, setTaken] = useState<string[]>([])
+  // Two different claims, kept apart because they are different. "I will read
+  // this" is a decision; "I read this" is an event. Only the second can unlock
+  // anything, and conflating them meant the product had no idea which had
+  // happened. Both become intents the ranker's eligibility gate already reads,
+  // so the promise on screen is enforced by the same code path as everything
+  // else — the trace even shows the book being put back, with the real reason.
+  const [reading, setReading] = useState<string[]>([])
+  const [finished, setFinished] = useState<string[]>([])
+  const taken = [...reading, ...finished]
   // The book just taken, held so the results area can show a completion rather
   // than silently re-ranking. Without this, choosing a book makes its own card
   // vanish — it becomes ineligible the instant it is taken, which is correct
@@ -529,11 +583,14 @@ export default function App() {
         purpose, mode, language, sessionMinutes, formatPreference, budget, author,
         adultConfirmed: true,
         founderContext: asksFounder ? { stage, currentDecision, actionHoursPerWeek: 2, activeApplyBooks } : null,
-        intents: taken.map((workId) => ({ workId, status: 'COMPLETED' as const })),
+        intents: [
+          ...reading.map((workId) => ({ workId, status: 'READING' as const })),
+          ...finished.map((workId) => ({ workId, status: 'COMPLETED' as const })),
+        ],
         rejections,
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections, taken],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -836,6 +893,28 @@ export default function App() {
                   That is the whole ask. Go and read it — there is no streak to keep, nothing to log,
                   and nothing here that wants you back tonight.
                 </p>
+
+                {!finished.includes(justTook) ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFinished((prev) => prev.includes(justTook) ? prev : [...prev, justTook])
+                        setReading((prev) => prev.filter((id) => id !== justTook))
+                      }}
+                      className="transition-ui mt-6 min-h-12 rounded-xl border border-accent px-6 text-[16px] font-medium text-accent hover:bg-accent-soft active:scale-[0.98]"
+                    >
+                      I have already finished this one
+                    </button>
+                    <p className="mt-2 max-w-[54ch] text-[14px] text-muted">
+                      Taken on trust. Nidus does not have the text of this book, so it cannot set you a
+                      quiz about it and will not pretend to — a test written by something that has not
+                      read the book is a worse lie than no test at all.
+                    </p>
+                  </>
+                ) : (
+                  <Unlocks workId={justTook} brief={brief} items={items} />
+                )}
               </div>
             ) : result.gap !== null ? (
               <div className="rounded-2xl border border-amber bg-amber-soft p-6">
@@ -974,7 +1053,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => {
-                              setTaken((prev) => prev.includes(d.workId) ? prev : [...prev, d.workId])
+                              setReading((prev) => prev.includes(d.workId) ? prev : [...prev, d.workId])
                               setJustTook(d.workId)
                               setRevealed(1)
                             }}
@@ -1027,10 +1106,14 @@ export default function App() {
               <div className="rise mt-6 rounded-2xl border border-accent bg-accent-soft p-5">
                 <p className="label-caps text-accent">What Nidus now knows</p>
                 <ul className="mt-3 space-y-1">
-                  {taken.map((id) => (
+                  {reading.map((id) => (
                     <li key={id} className="text-[15px]">
-                      You took <span className="font-medium">{items[id]?.work.title ?? id}</span>. It
-                      will not be offered to you again.
+                      On your pile: <span className="font-medium">{items[id]?.work.title ?? id}</span>.
+                    </li>
+                  ))}
+                  {finished.map((id) => (
+                    <li key={id} className="text-[15px]">
+                      Finished: <span className="font-medium">{items[id]?.work.title ?? id}</span>.
                     </li>
                   ))}
                 </ul>
