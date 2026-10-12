@@ -28,3 +28,4 @@ dist-ssr
 *.tgz
 .vite-out
 _gitlocks/
+.vite-out/

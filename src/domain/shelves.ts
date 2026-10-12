@@ -62,6 +62,20 @@ export const SHELVES: Shelf[] = [
     brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 20 },
   },
   {
+    id: 'selling',
+    name: 'Getting someone to say yes',
+    note: 'The shelf a technical founder reaches last and needs first.',
+    topics: ['selling', 'persuasion', 'customer-research'],
+    brief: { purpose: 'company-building', mode: 'apply', sessionMinutes: 15 },
+  },
+  {
+    id: 'running-a-team',
+    name: 'Running a team you did not have last year',
+    note: 'For the part nobody warned you about, which starts the day someone reports to you.',
+    topics: ['management', 'team', 'feedback', 'systems', 'crisis'],
+    brief: { purpose: 'company-building', mode: 'apply', sessionMinutes: 20 },
+  },
+  {
     id: 'money',
     // Added because tests/shelves.test.ts found a book no amount of browsing
     // could reach. An unreachable book is a catalogue bug, not a taste call.

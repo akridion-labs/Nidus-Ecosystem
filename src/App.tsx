@@ -452,8 +452,9 @@ function Unlocks({ workId, brief, items }: {
       <div className="mt-6 border-t border-line pt-5">
         <p className="label-caps text-muted">What this opened</p>
         <p className="mt-2 max-w-[54ch] text-[15px] text-muted">
-          Nothing in this catalogue was waiting on it. That is a fact about a catalogue of fourteen
-          books, not about the reading — most of what you learn has no next page.
+          Nothing in this catalogue was waiting on it. That is a fact about a catalogue of{' '}
+          {catalogue.items.length} books, not about the reading — most of what you learn has no
+          next page.
         </p>
       </div>
     )
@@ -615,7 +616,7 @@ export default function App() {
     },
     author: {
       head: `Nothing by ${author} in ${languageLabel} is in this catalogue.`,
-      body: 'The pilot catalogue is fourteen books by fourteen authors. Choose another author, change the language, or clear the filter.',
+      body: `The pilot catalogue is ${catalogue.items.length} books by ${authors.length} authors. Choose another author, change the language, or clear the filter.`,
     },
     budget: {
       head: 'Nothing here is free for you right now.',

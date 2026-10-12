@@ -105,10 +105,16 @@ function accessFit(route: AccessRoute): number {
 
 const PURPOSE_TOPICS: Record<Purpose, string[]> = {
   unwind: ['solitude', 'short-stories', 'everyday-life', 'journey', 'persistence'],
-  curiosity: ['curiosity', 'history', 'meaning', 'attention', 'bias', 'travel', 'india'],
-  craft: ['craft', 'focus', 'discipline', 'attention'],
-  decision: ['decision', 'judgement', 'moral-choice', 'composure', 'strategy'],
-  'company-building': ['company-building', 'validation', 'management', 'customer-research', 'experiments'],
+  curiosity: ['curiosity', 'history', 'meaning', 'attention', 'bias', 'travel', 'india', 'money'],
+  craft: ['craft', 'focus', 'discipline', 'attention', 'endurance'],
+  decision: ['decision', 'judgement', 'moral-choice', 'composure', 'strategy', 'bias'],
+  // Selling, persuasion, team and systems arrived with the October catalogue
+  // and were scoring zero until they were named here — a topic no purpose maps
+  // to is a book the ranker can see and never choose.
+  'company-building': [
+    'company-building', 'validation', 'management', 'customer-research', 'experiments',
+    'selling', 'persuasion', 'team', 'systems',
+  ],
 }
 
 function topicFit(item: CatalogueItem, purpose: Purpose): number {
