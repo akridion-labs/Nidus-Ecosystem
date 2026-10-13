@@ -95,17 +95,44 @@ export function readingPath(
 }
 
 /**
- * Where a reader could look for a copy.
+ * Where a reader could look for a copy, fastest route first.
  *
- * Every one of these is a SEARCH, never a listing, and that distinction is the
- * whole design. Nidus has no price feed, no stock feed and no delivery feed,
- * so it cannot say what a book costs, whether anyone has it, or when it would
- * arrive — and a link to a search result stays true forever, where a link to a
- * price goes wrong the first time the price changes.
+ * Two rules, and the second one is the hard one.
  *
- * No affiliate tags, no commission, and no ordering that favours one shop.
+ * 1. Every route is a SEARCH or a MAP, never a listing. Nidus has no price
+ *    feed, no stock feed and no delivery feed. A link to a search stays true
+ *    forever; a link to a price is wrong the first time the price changes.
+ *
+ * 2. `speed` is about the ROUTE, not about this order. "Today, if they have
+ *    it" is true of every bookshop in the world and claims nothing about any
+ *    particular shop on any particular day. "Arrives Tuesday" would be a claim
+ *    about one order, which is the thing Nidus cannot make. The conditional in
+ *    that sentence is not hedging — it is the entire difference between a fact
+ *    and a guess, and it is why the fastest routes are listed first without
+ *    anyone being promised anything.
+ *
+ * The map link is how "give me directions and the shop's number" gets answered
+ * honestly: Nidus does not hold a phone number that might be three years out
+ * of date, the map holds a current one, and the reader gets directions in the
+ * same tap.
+ *
+ * No affiliate tags, no commission, and the order is by typical speed rather
+ * than by who would pay to be first.
  */
-export type Route = { label: string; url: string; note: string }
+export type RouteSpeed = 'now' | 'same-day' | 'days'
+
+export type Route = {
+  label: string
+  url: string
+  note: string
+  speed: RouteSpeed
+}
+
+export const SPEED_COPY: Record<RouteSpeed, string> = {
+  now: 'Now',
+  'same-day': 'Today, if they have it',
+  days: 'Usually a few days',
+}
 
 export function findRoutes(item: CatalogueItem, publicDomain: boolean): Route[] {
   const q = encodeURIComponent(`${item.work.title} ${item.work.author}`)
@@ -116,24 +143,34 @@ export function findRoutes(item: CatalogueItem, publicDomain: boolean): Route[] 
       label: 'Read it free, legally',
       url: `https://www.gutenberg.org/ebooks/search/?query=${q}`,
       note: 'Out of copyright. The translation you pick changes the reading, so choose deliberately.',
+      speed: 'now',
     })
   }
 
   routes.push(
     {
-      label: 'Search online sellers',
+      label: 'A library near you',
+      url: `https://search.worldcat.org/search?q=${q}`,
+      note: 'Usually the cheapest route, and the one people forget.',
+      speed: 'same-day',
+    },
+    {
+      label: 'A bookshop near you — map and directions',
+      url: 'https://www.google.com/maps/search/?api=1&query=bookshop+near+me',
+      note: 'Opens a map with directions and each shop\u2019s own listed number. Nidus does not store phone numbers that go out of date, and it still cannot see anyone\u2019s shelves — ringing ahead is the fastest way to know.',
+      speed: 'same-day',
+    },
+    {
+      label: 'Second-hand',
+      url: `https://duckduckgo.com/?q=${q}+second+hand+book+india`,
+      note: 'India has a real used-book market — BookChor, Clankart, Bookflow and others. Often a third of the price, and the book is the same book.',
+      speed: 'days',
+    },
+    {
+      label: 'New, online',
       url: `https://www.amazon.in/s?k=${q}`,
       note: 'A search, not a listing. Nidus does not know the price or whether it is in stock.',
-    },
-    {
-      label: 'Find a bookshop near you',
-      url: `https://duckduckgo.com/?q=${q}+bookshop+near+me`,
-      note: 'Nidus cannot see any shop’s shelves. Ringing one is still the fastest way to know.',
-    },
-    {
-      label: 'Find it in a library',
-      url: `https://search.worldcat.org/search?q=${q}`,
-      note: 'Often the cheapest route, and the one people forget.',
+      speed: 'days',
     },
   )
   return routes

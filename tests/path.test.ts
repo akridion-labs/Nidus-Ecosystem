@@ -5,7 +5,7 @@ import { ReadingBrief } from '../src/domain/contracts.ts'
 import type { ReadingBrief as Brief } from '../src/domain/contracts.ts'
 import { loadCatalogue } from '../src/domain/catalogue.ts'
 import { seedWorks, seedEditions, seedProfiles, PUBLIC_DOMAIN_WORKS } from '../src/data/catalogue.seed.ts'
-import { readingPath, findRoutes } from '../src/domain/path.ts'
+import { readingPath, findRoutes, SPEED_COPY } from '../src/domain/path.ts'
 
 const loaded = loadCatalogue(seedWorks, seedEditions, seedProfiles)
 const item = (id: string) => loaded.items.find((i) => i.work.id === id)!
@@ -65,11 +65,11 @@ test('a book with no chain is one step, not an invented curriculum', () => {
  */
 const ALLOWED_NOTES = new Set([
   'Out of copyright. The translation you pick changes the reading, so choose deliberately.',
+  'Usually the cheapest route, and the one people forget.',
+  'Opens a map with directions and each shop\u2019s own listed number. Nidus does not store phone numbers that go out of date, and it still cannot see anyone\u2019s shelves — ringing ahead is the fastest way to know.',
+  'India has a real used-book market — BookChor, Clankart, Bookflow and others. Often a third of the price, and the book is the same book.',
   'A search, not a listing. Nidus does not know the price or whether it is in stock.',
-  'Nidus cannot see any shop\u2019s shelves. Ringing one is still the fastest way to know.',
-  'Often the cheapest route, and the one people forget.',
 ])
-
 test('every route is a search, with a reviewed note and no affiliate tag', () => {
   for (const it of loaded.items) {
     const routes = findRoutes(it, PUBLIC_DOMAIN_WORKS.includes(it.work.id))
@@ -78,7 +78,10 @@ test('every route is a search, with a reviewed note and no affiliate tag', () =>
       assert.match(r.url, /^https:\/\//)
       // A search endpoint carries the query. A product listing would not, and
       // would go wrong the first time a price or an edition changed.
-      assert.match(r.url, /[?&](q|k|query)=/, `${r.label} is not a search URL`)
+      // A search endpoint carries the query; a map link carries a place query.
+      // A product listing would carry neither, and would go wrong the first
+      // time a price or an edition changed.
+      assert.match(r.url, /[?&](q|k|query)=/, `${r.label} is neither a search nor a map`)
       assert.ok(ALLOWED_NOTES.has(r.note), `unreviewed route note: ${r.note}`)
       // No affiliate tags, no commission, ever.
       assert.doesNotMatch(r.url, /[?&](tag|ref|aff|utm_)/)
@@ -86,6 +89,30 @@ test('every route is a search, with a reviewed note and no affiliate tag', () =>
       assert.doesNotMatch(r.label, /\b(₹|\$|cheap|fast|best|deal|offer|delivery)\b/i)
     }
   }
+})
+
+test('routes are ordered fastest first, and no speed claims a date', () => {
+  const order = { now: 0, 'same-day': 1, days: 2 } as const
+  for (const it of loaded.items) {
+    const routes = findRoutes(it, PUBLIC_DOMAIN_WORKS.includes(it.work.id))
+    const ranks = routes.map((r) => order[r.speed])
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b), `${it.work.id} routes out of order`)
+  }
+  // The speed label describes the ROUTE. The conditional in "if they have it"
+  // is the whole difference between a fact about bookshops and a promise about
+  // one order, so it is asserted rather than trusted to survive an edit.
+  assert.match(SPEED_COPY['same-day'], /\bif they have it\b/)
+  for (const copy of Object.values(SPEED_COPY)) {
+    assert.doesNotMatch(copy, /\b(tomorrow|monday|tuesday|wednesday|thursday|friday|by \d)\b/i)
+  }
+})
+
+test('a local-shop route gives directions rather than a stored phone number', () => {
+  const map = findRoutes(item('deep-work'), false).find((r) => /map/i.test(r.label))!
+  assert.match(map.url, /google\.com\/maps/)
+  // Nidus holding a phone number means Nidus holding a phone number that goes
+  // out of date. The map's is current; Nidus's would not be.
+  assert.doesNotMatch(JSON.stringify(findRoutes(item('deep-work'), false)), /\+?\d{2,4}[- ]?\d{6,}/)
 })
 
 test('a public-domain work offers the free route first', () => {

@@ -14,7 +14,7 @@ import { Spine } from './brand/Spine.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
-import { readingPath, findRoutes } from './domain/path.ts'
+import { readingPath, findRoutes, SPEED_COPY } from './domain/path.ts'
 import { PUBLIC_DOMAIN_WORKS } from './data/catalogue.seed.ts'
 import type { Shelf } from './domain/shelves.ts'
 import type { CoverageGap, Ineligible } from './domain/ranker.ts'
@@ -253,24 +253,32 @@ function BookSheet({ item, brief, onClose }: {
         <p className="label-caps text-muted">Where to look for a copy</p>
         <ul className="mt-3 space-y-3">
           {routes.map((r) => (
-            <li key={r.label}>
-              <a
-                href={r.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-[16px] font-medium text-accent underline underline-offset-2"
-              >
-                {r.label}
-              </a>
-              <span className="block max-w-[52ch] text-[14px] leading-snug text-muted">{r.note}</span>
+            <li key={r.label} className="flex gap-3">
+              {/* The speed is about the ROUTE, never about this order. Every
+                  conditional in these labels is load-bearing. */}
+              <span className="label-caps mt-1 w-[7rem] shrink-0 text-muted">
+                {SPEED_COPY[r.speed]}
+              </span>
+              <span className="min-w-0">
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-[16px] font-medium text-accent underline underline-offset-2"
+                >
+                  {r.label}
+                </a>
+                <span className="block max-w-[48ch] text-[14px] leading-snug text-muted">{r.note}</span>
+              </span>
             </li>
           ))}
         </ul>
         <p className="mt-4 max-w-[54ch] rounded-lg border border-amber bg-amber-soft p-3 text-[14px]">
-          <strong className="font-medium">These are searches, not listings.</strong> Nidus has no
-          price feed, no stock feed and no delivery feed, so it cannot tell you what this costs, who
-          has it, or when it would arrive. No affiliate links and no commission — the order above is
-          not a recommendation about shops.
+          <strong className="font-medium">These are searches and maps, not listings.</strong> Nidus
+          has no price feed, no stock feed and no delivery feed. “Today, if they have it” is true of
+          every bookshop and promises nothing about any particular one — Nidus cannot tell you what
+          this costs, who has it, or when it would arrive. No affiliate links and no commission; the
+          order is by typical speed, not by who would pay to be first.
         </p>
       </div>
     </div>
