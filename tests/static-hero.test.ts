@@ -24,6 +24,20 @@ test('the static hero headline matches the one React renders', () => {
   )
 })
 
+test('the static hero paragraph matches the one React renders', () => {
+  // The headline was checked and the paragraph was not, so the paragraph drifted:
+  // index.html carried one sentence and React swapped in three on mount. Nobody
+  // saw it in a screenshot, because a screenshot is taken after mount.
+  const rendered = /className="rise mt-5 max-w-\[52ch\][^"]*"[\s\S]{0,120}?>\s*([\s\S]*?)\s*<\/p>/
+    .exec(app)?.[1]
+  assert.ok(rendered, 'could not find the rendered hero paragraph in App.tsx')
+  const flat = (t: string) => t.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  assert.ok(
+    flat(html).includes(flat(rendered)),
+    `index.html must contain the rendered hero paragraph.\n  expected: ${flat(rendered)}`,
+  )
+})
+
 test('the static hero is inside #root so React replaces it cleanly', () => {
   const root = /<div id="root">([\s\S]*?)\n    <\/div>/.exec(html)
   assert.ok(root, '#root must contain the static markup')

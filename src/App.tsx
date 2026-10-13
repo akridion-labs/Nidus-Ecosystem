@@ -16,6 +16,7 @@ import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
 import { readingPath, findRoutes, SPEED_COPY } from './domain/path.ts'
 import { ASPIRATIONS, aspirationPlan } from './domain/aspirations.ts'
+import { readSituation, focusTopics } from './domain/reader.ts'
 import type { Aspiration } from './domain/aspirations.ts'
 import { PUBLIC_DOMAIN_WORKS } from './data/catalogue.seed.ts'
 import type { Shelf } from './domain/shelves.ts'
@@ -547,17 +548,27 @@ function Choice<T extends string | number>({
  * takes about 0.04ms, and the animation is there so a person can follow a
  * decision that would otherwise be instantaneous and invisible.
  */
-function Trace({ total, excluded, purpose, mode, minutes, scored }: {
+function Trace({ total, excluded, purpose, mode, minutes, scored, focus }: {
   total: number
   excluded: Ineligible[]
   purpose: string
   mode: string
   minutes: number
   scored: number
+  focus: string[]
 }) {
   // Four books, named, with the actual reason each was put back. Cap at four
   // because the point is "you can see it happening", not "read this list".
-  const shown = excluded.slice(0, 4)
+  //
+  // Which four is not arbitrary any more. Type "I need to let someone go" and
+  // the management books become ineligible on stage — and the old trace listed
+  // four unrelated titles instead, so the answer arrived looking like the
+  // sentence had been ignored. The books nearest what the reader just said are
+  // the ones worth naming: those are the ones they are about to wonder about.
+  const near = (x: Ineligible) => x.item.profile.topics.filter((t) => focus.includes(t)).length
+  const shown = focus.length === 0
+    ? excluded.slice(0, 4)
+    : [...excluded].sort((a, b) => near(b) - near(a)).slice(0, 4)
   const rest = excluded.length - shown.length
 
   return (
@@ -764,6 +775,17 @@ export default function App() {
   // constant 5/10 on every card.
   const [confirmedTopics, setConfirmedTopics] = useState<string[]>([])
 
+  // What the typed sentence was read as, and what the reader struck out of it.
+  //
+  // These are a weaker claim than `confirmedTopics` and are kept in a separate
+  // variable so that stays true: a tapped aspiration is a choice, a parsed
+  // sentence is a reading of one. What makes it safe to use anyway is that it
+  // is shown on screen the instant it is read, with an x on every chip. The
+  // parser has no negation and never will — "I do NOT need pricing help" reads
+  // as pricing — so being wrong in public and removable is the design, not a
+  // gap in it.
+  const [struckOut, setStruckOut] = useState<string[]>([])
+
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
   // Two different claims, kept apart because they are different. "I will read
   // this" is a decision; "I read this" is an event. Only the second can unlock
@@ -851,6 +873,12 @@ export default function App() {
   // in front of them and watched the page ignore it.
   const asksFounder = purpose === 'company-building' && mode === 'apply'
 
+  const read = useMemo(() => readSituation(asksFounder ? currentDecision : ''), [asksFounder, currentDecision])
+  const readTopics = useMemo(
+    () => read.topics.filter((t) => !struckOut.includes(t)),
+    [read, struckOut],
+  )
+
   const brief: Brief = useMemo(
     () =>
       ReadingBrief.parse({
@@ -862,10 +890,10 @@ export default function App() {
           ...finished.map((workId) => ({ workId, status: 'COMPLETED' as const })),
         ],
         rejections,
-        confirmedTopics,
+        confirmedTopics: focusTopics(readTopics, confirmedTopics),
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics, readTopics],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -946,9 +974,8 @@ export default function App() {
             className="rise mt-5 max-w-[52ch] text-[17px] text-muted"
             style={{ animationDelay: '180ms' }}
           >
-            Nidus gives you <span className="text-ink">one book</span> for where you actually are,
-            shows the arithmetic that chose it, and tells you what the book cannot do. No account,
-            nothing to fill in, and it never offers you the same book twice.
+            Nidus gives you one book for where you actually are, shows the arithmetic that chose
+            it, and tells you what the book cannot do.
           </p>
 
           <div className="rise mt-8" style={{ animationDelay: '280ms' }}>
@@ -971,6 +998,12 @@ export default function App() {
                 </button>
               ))}
             </div>
+            {/* Below the chips on purpose. On a 320px phone every line above
+                them is a line of scrolling before the visitor can see the one
+                thing to tap. */}
+            <p className="mt-3 text-[15px] text-muted">
+              No account, nothing to fill in, and it never offers you the same book twice.
+            </p>
           </div>
 
           {aspiration && (
@@ -1176,6 +1209,47 @@ export default function App() {
                   <span className="mt-1 block text-[14px] text-muted">Stays in this browser. Skip it if you would rather not say.</span>
                 </label>
 
+                {/* What Nidus took from that sentence, shown while it is being
+                    typed. This is the whole feature: the box used to be read as
+                    a yes/no and quoted back, which looks exactly like being
+                    understood and is not. A chip you can delete is a better
+                    correction mechanism than a chat reply, because it is
+                    specific — and it is the only honest way to use a parser
+                    that cannot read "not". */}
+                {currentDecision.trim() !== '' && (
+                  <div aria-live="polite" className="mt-3 rounded-lg border border-dashed border-line bg-surface p-3">
+                    {readTopics.length > 0 ? (
+                      <>
+                        <p className="label-caps text-accent">Read from that</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {readTopics.map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setStruckOut((prev) => [...prev, t])}
+                              className="transition-ui flex min-h-11 items-center gap-2 rounded-full border border-accent bg-accent-soft px-3 text-[15px] hover:border-ink"
+                            >
+                              {t.replaceAll('-', ' ')}
+                              <span aria-hidden className="text-muted">&times;</span>
+                              <span className="sr-only">— remove, Nidus read this wrongly</span>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[14px] text-muted">
+                          Worth 10 points in the scoring below. Remove anything it got wrong — it reads
+                          words, not meaning, so it cannot tell &ldquo;not pricing&rdquo; from &ldquo;pricing&rdquo;.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[15px] text-muted">
+                        {read.unread
+                          ? 'Nothing recognised in that yet. It still counts — the ranker knows you named a decision — but your purpose, mode and time are doing the work.'
+                          : 'Everything read from that was removed. Purpose, mode and time are doing the work.'}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <label className="mt-4 flex min-h-11 items-center gap-3">
                   <input
                     type="checkbox"
@@ -1221,6 +1295,7 @@ export default function App() {
                 key={`trace-${runId}`}
                 total={catalogue.items.length}
                 excluded={result.excluded}
+                focus={brief.confirmedTopics}
                 scored={catalogue.items.length - result.excluded.length}
                 purpose={PURPOSE_COPY[purpose]}
                 mode={MODE_COPY[mode].label}

@@ -219,7 +219,7 @@ function scoreGeneric(item: CatalogueItem, brief: ReadingBrief) {
   const context = contextFit(item, brief)
   const parts: [keyof typeof GENERIC_WEIGHTS, number, string][] = [
     ['purpose', focusFit(item, brief, brief.purpose),
-      describeTopics(item, brief.purpose)],
+      describeTopics(item, brief, brief.purpose)],
     ['mode', modeFit(item, brief.mode),
       `Suits ${brief.mode} reading.`],
     ['context', context,
@@ -282,7 +282,7 @@ function scoreFounder(item: CatalogueItem, brief: ReadingBrief) {
     {
       signal: 'purpose', maxPoints: FOUNDER_WEIGHTS.purpose,
       points: round(FOUNDER_WEIGHTS.purpose * focusFit(item, brief, 'company-building')),
-      text: describeTopics(item, 'company-building'),
+      text: describeTopics(item, brief, 'company-building'),
     },
     {
       signal: 'stage', maxPoints: FOUNDER_WEIGHTS.stage,
@@ -469,12 +469,30 @@ const STAGE_WORD: Record<FounderStage, string> = {
 function round(n: number) { return Math.round(n * 10) / 10 }
 function clamp(n: number, lo: number, hi: number) { return Math.min(hi, Math.max(lo, n)) }
 
-function describeTopics(item: CatalogueItem, purpose: Purpose): string {
-  const wanted = PURPOSE_TOPICS[purpose]
+/**
+ * The sentence under the purpose bar. It must mirror `focusFit`, which is what
+ * produced the number beside it.
+ *
+ * It did not, for one build: once a typed sentence could set `confirmedTopics`,
+ * the score came from the reader's own words while this sentence still read off
+ * the purpose. A reader who typed "I need to let someone go" was told the book
+ * "covers positioning and selling, which is what you said you came for". They
+ * had said no such thing. An explanation that does not describe the arithmetic
+ * beside it is worse than no explanation, because it is believed.
+ */
+function describeTopics(item: CatalogueItem, brief: ReadingBrief, purpose: Purpose): string {
+  const stated = brief.confirmedTopics.length > 0
+  const wanted = stated ? brief.confirmedTopics : PURPOSE_TOPICS[purpose]
   const overlap = item.profile.topics.filter((t) => wanted.includes(t))
-  return overlap.length > 0
-    ? `Covers ${overlap.slice(0, 2).map(readable).join(' and ')}, which is what you said you came for.`
-    : 'Does not directly cover what you said you came for.'
+  if (overlap.length === 0) {
+    return stated
+      ? 'Does not cover what you named. It scored on the rest.'
+      : 'Does not directly cover what you said you came for.'
+  }
+  const list = overlap.slice(0, 2).map(readable).join(' and ')
+  return stated
+    ? `Covers ${list}, which is what you named.`
+    : `Covers ${list}, which is what you said you came for.`
 }
 
 function describeAccess(route: AccessRoute): string {
@@ -580,8 +598,8 @@ export function rank(catalogue: LoadedCatalogue, brief: ReadingBrief): RankResul
       score: pick.score,
       components: pick.components,
       whyThisBook: role === 'exploration'
-        ? `Offered as a different direction rather than a close match. ${describeTopics(item, brief.purpose)}`
-        : describeTopics(item, brief.purpose),
+        ? `Offered as a different direction rather than a close match. ${describeTopics(item, brief, brief.purpose)}`
+        : describeTopics(item, brief, brief.purpose),
       whyNow: whyNow(brief, role),
       whyThisMode: MODE_REASON[brief.mode],
       firstStep: firstStep(item, brief),
