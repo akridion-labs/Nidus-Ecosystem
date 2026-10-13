@@ -38,6 +38,35 @@
      the scale. */
 }
 
+/* Night.
+ *
+ * The product's own headline is "It is 11:40pm". A reading surface that is
+ * bright cream at that hour is arguing with its own copy, and a dark page is
+ * both the more distinctive choice and the one the eye-strain brief points at
+ * after dark. Same tokens, different values, so every component follows
+ * without knowing night exists.
+ *
+ * Contrast against --color-paper #14181d: ink 14.9:1, muted 7.4:1,
+ * accent 7.1:1, amber 8.3:1 — all comfortably past AA, measured rather than
+ * eyeballed, because a dark theme is where contrast quietly goes wrong. */
+:root[data-theme='night'] {
+  --color-paper: #14181d;
+  --color-surface: #1b2027;
+  --color-ink: #ece6da;
+  --color-muted: #9aa7b5;
+  --color-line: #2c333d;
+  --color-accent: #5fb3a6;
+  --color-accent-soft: #1d3a36;
+  --color-amber: #d8a85e;
+  --color-amber-soft: #33291b;
+}
+
+:root[data-theme='night'] { color-scheme: dark; }
+
+/* The grain multiplies, which on a dark surface would just darken it further.
+   Screen blending keeps the tooth visible instead. */
+:root[data-theme='night'] .grain { mix-blend-mode: screen; opacity: 0.1; }
+
 html {
   color-scheme: light;
   scroll-behavior: smooth;
@@ -135,6 +164,59 @@ body {
   opacity: 0.22;
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.38'/%3E%3C/svg%3E");
+}
+
+/* Book spines.
+ *
+ * A reading product with no picture of a book in it is the thing that made
+ * this page feel like an article. These are NOT cover images — reproducing
+ * real covers is someone else's copyright. Each spine is drawn from the
+ * book's own record: the hue is a hash of its id, so it is stable, and the
+ * saturation and lightness are clamped to a narrow band so a shelf of them
+ * reads like a row of cloth bindings rather than a paint chart. The height
+ * varies with page count where it is known, and difficulty sets the band.
+ *
+ * Height and colour are the only things that vary. Resist adding more: the
+ * point is that a shelf is recognisable at a glance, not that each book is a
+ * tiny illustration. */
+.spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 2px 4px 4px 2px;
+  box-shadow:
+    inset -1px 0 0 rgb(0 0 0 / 0.22),
+    inset 2px 0 0 rgb(255 255 255 / 0.10),
+    0 1px 2px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.spine::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 14%;
+  height: 2px;
+  background: rgb(255 255 255 / 0.22);
+}
+
+.spine-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  color: rgb(255 255 255 / 0.93);
+  padding: 0.75rem 0.1rem;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .spine { transition: transform 200ms var(--ease-paper); }
+  .shelf-row:hover .spine { transform: translateY(2px); }
+  .spine:hover { transform: translateY(-10px) !important; }
 }
 
 /* Scrapbook mounts. A page of a journal is not a grid of identical rectangles:

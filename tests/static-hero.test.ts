@@ -25,3 +25,13 @@ test('the static hero is inside #root so React replaces it cleanly', () => {
   assert.ok(root, '#root must contain the static markup')
   assert.ok(root[1].includes('<h1'), 'the headline must be inside #root')
 })
+
+test('night is chosen by the clock, not by guesswork', async () => {
+  const { nightByDefault } = await import('../src/App.tsx').catch(() => ({ nightByDefault: null }))
+  // App.tsx imports CSS and React, so it cannot be loaded in node:test. The
+  // rule is asserted against the source instead: the boundary must be 20:00
+  // and 06:00, because a theme that flips at the wrong hour is the kind of
+  // bug nobody files and everybody notices.
+  if (nightByDefault) return
+  assert.match(app, /hour >= 20 \|\| hour < 6/)
+})

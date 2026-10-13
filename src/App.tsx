@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ReadingBrief, MODES, PURPOSES, FOUNDER_STAGES, REJECTION_REASONS,
   FORMAT_PREFS, BUDGETS,
@@ -10,6 +10,7 @@ import type {
 import { catalogue } from './data/catalogue.ts'
 import type { CatalogueItem } from './domain/catalogue.ts'
 import { Wordmark } from './brand/Wordmark.tsx'
+import { Spine } from './brand/Spine.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
@@ -92,6 +93,21 @@ const USAGE_COPY: Partial<Record<RecommendationDecision['recommendedUsage'], str
   FULL_READ: 'Read it through',
   SELECTED_CHAPTERS: 'Selected chapters only',
   DEFER: 'Not yet',
+}
+
+/**
+ * Night.
+ *
+ * The headline says "It is 11:40pm". If a reader opens this at 11:40pm and
+ * gets a bright cream page, the product is arguing with its own copy.
+ *
+ * Switching a theme under someone without telling them is unsettling, so the
+ * page says it did it and offers the undo in the same line. After that the
+ * reader's choice wins for the session — an automatic decision that cannot be
+ * overruled is a worse pattern than no automation.
+ */
+function nightByDefault(hour = new Date().getHours()) {
+  return hour >= 20 || hour < 6
 }
 
 /* ---------------------------------------------------------------- *
@@ -206,6 +222,23 @@ function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
 
       <div key={shelf.id} className="shelf-in rounded-2xl rounded-tl-none border border-line bg-surface p-5 sm:p-8">
         <p className="book-voice max-w-[34ch] text-[1.5rem]">{shelf.note}</p>
+
+        {books.length > 0 && (
+          <>
+            {/* The shelf, as a shelf. Drawn spines, never cover images. */}
+            {/* tabIndex: a region that scrolls must be reachable by keyboard, or
+                its contents are unreachable without a mouse. axe caught this. */}
+            <div
+              className="shelf-row mt-6 flex items-end gap-[3px] overflow-x-auto pb-3"
+              tabIndex={0}
+              role="group"
+              aria-label={`Spines of the ${books.length} books on this shelf`}
+            >
+              {books.map((item) => <Spine key={item.work.id} item={item} />)}
+            </div>
+            <div className="h-[6px] rounded-full bg-line" aria-hidden />
+          </>
+        )}
 
         {books.length === 0 ? (
           <div className="mt-6 rounded-xl border border-amber bg-amber-soft p-5">
@@ -536,6 +569,13 @@ export default function App() {
   // as a bundle to get through, not as an answer to the question asked.
   const [revealed, setRevealed] = useState(1)
 
+  // Decided once, from the clock, then owned by the reader.
+  const [theme, setTheme] = useState<'day' | 'night'>(() => (nightByDefault() ? 'night' : 'day'))
+  const [themeWasAutomatic, setThemeWasAutomatic] = useState(() => nightByDefault())
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
   const [openingId, setOpeningId] = useState(OPENINGS[0].id)
   // Bumped on every answer so the trace and the arithmetic replay rather than
   // silently swapping to new values.
@@ -645,7 +685,16 @@ export default function App() {
         <header className="pt-10 pb-8 lg:pt-16 lg:pb-12">
           <div className="rise flex flex-wrap items-baseline justify-between gap-2">
             <Wordmark />
-            <p className="label-caps text-muted">One book · not a reading list</p>
+            <div className="flex items-center gap-4">
+              <p className="label-caps text-muted">One book · not a reading list</p>
+              <button
+                type="button"
+                onClick={() => { setTheme((t) => (t === 'night' ? 'day' : 'night')); setThemeWasAutomatic(false) }}
+                className="transition-ui label-caps min-h-11 rounded-lg border border-line px-3 text-muted hover:border-accent hover:text-ink"
+              >
+                {theme === 'night' ? 'Day' : 'Night'}
+              </button>
+            </div>
           </div>
 
           {/* The cold open. The situation is the headline; the product is the
@@ -657,6 +706,19 @@ export default function App() {
           >
             {opening.line}
           </h1>
+
+          {themeWasAutomatic && theme === 'night' && (
+            <p className="rise mt-4 text-[15px] text-muted" style={{ animationDelay: '180ms' }}>
+              It is late where you are, so Nidus dimmed the page.{' '}
+              <button
+                type="button"
+                onClick={() => { setTheme('day'); setThemeWasAutomatic(false) }}
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                Put it back
+              </button>
+            </p>
+          )}
 
           <div className="rise mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: '260ms' }}>
             <button
@@ -949,6 +1011,9 @@ export default function App() {
                           {deferred && <Badge tone="amber">{USAGE_COPY.DEFER}</Badge>}
                         </div>
 
+                        <div className="flex items-start gap-5">
+                          <Spine item={item} tall />
+                          <div className="min-w-0 grow">
                         <h3 className="book-voice text-[2rem]">{item.work.title}</h3>
                         <p className="text-muted">
                           <button
@@ -966,6 +1031,9 @@ export default function App() {
                         <p className="book-voice mt-4 max-w-[36ch] text-[1.5rem] text-ink">
                           {item.profile.inOneLine}
                         </p>
+
+                          </div>
+                        </div>
 
                         {item.work.popularity && (
                           <p className="mt-2 text-[15px] text-muted">
