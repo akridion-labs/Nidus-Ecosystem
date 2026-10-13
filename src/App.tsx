@@ -14,6 +14,8 @@ import { Spine } from './brand/Spine.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
+import { readingPath, findRoutes } from './domain/path.ts'
+import { PUBLIC_DOMAIN_WORKS } from './data/catalogue.seed.ts'
 import type { Shelf } from './domain/shelves.ts'
 import type { CoverageGap, Ineligible } from './domain/ranker.ts'
 
@@ -175,8 +177,109 @@ const OPENINGS: Opening[] = [
   },
 ]
 
-function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
+const STEP_COPY: Record<'done' | 'now' | 'next' | 'later', { label: string; tone: string }> = {
+  done: { label: 'Read', tone: 'text-muted' },
+  now: { label: 'This one', tone: 'text-accent' },
+  next: { label: 'Next', tone: 'text-ink' },
+  later: { label: 'Not yet', tone: 'text-amber' },
+}
+
+/**
+ * The book, lifted out of the shelf.
+ *
+ * Two halves, and both are things a reader cannot get from a shop page. The
+ * steps come from the catalogue's own prerequisite graph, so "step 1, step 2"
+ * is computed rather than written. The routes are searches, never listings —
+ * Nidus has no price, stock or delivery feed and says so in the panel rather
+ * than in a footnote nobody opens.
+ */
+function BookSheet({ item, brief, onClose }: {
+  item: CatalogueItem
+  brief: Brief
+  onClose: () => void
+}) {
+  const steps = readingPath(catalogue, item.work.id, brief)
+  const routes = findRoutes(item, PUBLIC_DOMAIN_WORKS.includes(item.work.id))
+
+  return (
+    <div className="lift mt-4 rounded-2xl border border-accent bg-paper p-5 sm:p-7">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h3 className="book-voice text-[1.75rem]">{item.work.title}</h3>
+          <p className="text-[15px] text-muted">
+            {item.work.author}
+            {item.work.firstPublished !== null && ` · ${item.work.firstPublished}`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="transition-ui label-caps min-h-11 shrink-0 rounded-lg border border-line px-3 text-muted hover:border-accent hover:text-ink"
+        >
+          Close
+        </button>
+      </div>
+
+      <p className="book-voice mt-4 max-w-[34ch] text-[1.25rem]">{item.profile.inOneLine}</p>
+
+      <div className="mt-6">
+        <p className="label-caps text-muted">The order it goes in</p>
+        <ol className="mt-3 space-y-3">
+          {steps.map((step, i) => (
+            <li key={step.item.work.id} className="flex gap-3">
+              {/* "1. Then" read as nonsense. A step is either a number in the
+                  order, or a state that is not a step. */}
+              <span
+                className={`label-caps mt-1 w-[4.5rem] shrink-0 ${STEP_COPY[step.status].tone}`}
+              >
+                {step.status === 'next' ? `${i + 1}.` : STEP_COPY[step.status].label}
+              </span>
+              <span className="min-w-0">
+                <span className="book-voice block text-[1.125rem]">{step.item.work.title}</span>
+                <span className="block max-w-[52ch] text-[14px] leading-snug text-muted">{step.why}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        {steps.length === 1 && (
+          <p className="mt-3 max-w-[52ch] text-[14px] text-muted">
+            Nothing in this catalogue comes before or after it. Most of what you read does not sit in
+            a sequence, and pretending otherwise would be a curriculum rather than a shelf.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-6 border-t border-line pt-5">
+        <p className="label-caps text-muted">Where to look for a copy</p>
+        <ul className="mt-3 space-y-3">
+          {routes.map((r) => (
+            <li key={r.label}>
+              <a
+                href={r.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-[16px] font-medium text-accent underline underline-offset-2"
+              >
+                {r.label}
+              </a>
+              <span className="block max-w-[52ch] text-[14px] leading-snug text-muted">{r.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 max-w-[54ch] rounded-lg border border-amber bg-amber-soft p-3 text-[14px]">
+          <strong className="font-medium">These are searches, not listings.</strong> Nidus has no
+          price feed, no stock feed and no delivery feed, so it cannot tell you what this costs, who
+          has it, or when it would arrive. No affiliate links and no commission — the order above is
+          not a recommendation about shops.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function Shelves({ onPick, brief }: { onPick: (shelf: Shelf) => void; brief: Brief }) {
   const [openId, setOpenId] = useState(SHELVES[0].id)
+  const [openBook, setOpenBook] = useState<string | null>(null)
   const shelf = SHELVES.find((x) => x.id === openId)!
   const books = shelfItems(catalogue, shelf)
 
@@ -203,7 +306,7 @@ function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
               key={x.id}
               aria-pressed={on}
               type="button"
-              onClick={() => setOpenId(x.id)}
+              onClick={() => { setOpenId(x.id); setOpenBook(null) }}
               className={[
                 'transition-ui flex min-h-11 items-center gap-2 rounded-t-xl border px-4 text-[15px]',
                 on
@@ -234,9 +337,29 @@ function Shelves({ onPick }: { onPick: (shelf: Shelf) => void }) {
               role="group"
               aria-label={`Spines of the ${books.length} books on this shelf`}
             >
-              {books.map((item) => <Spine key={item.work.id} item={item} />)}
+              {books.map((item) => (
+                <button
+                  key={item.work.id}
+                  type="button"
+                  aria-expanded={openBook === item.work.id}
+                  onClick={() => setOpenBook((id) => (id === item.work.id ? null : item.work.id))}
+                  className={`shrink-0 rounded-sm ${openBook === item.work.id ? 'spine-lifted' : ''}`}
+                >
+                  <Spine item={item} />
+                  <span className="sr-only">{item.work.title} by {item.work.author}</span>
+                </button>
+              ))}
             </div>
             <div className="h-[6px] rounded-full bg-line" aria-hidden />
+
+            {openBook && books.some((b) => b.work.id === openBook) && (
+              <BookSheet
+                key={openBook}
+                item={books.find((b) => b.work.id === openBook)!}
+                brief={brief}
+                onClose={() => setOpenBook(null)}
+              />
+            )}
           </>
         )}
 
@@ -1228,7 +1351,7 @@ export default function App() {
           </section>
          </div>
 
-          <Shelves onPick={applyShelf} />
+          <Shelves onPick={applyShelf} brief={brief} />
 
           <section aria-labelledby="vs" className="mt-16 rounded-2xl border border-line bg-surface p-6 sm:p-10">
             <h2 id="vs" className="display text-[2rem]">Why not just ask a chatbot?</h2>

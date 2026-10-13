@@ -36,6 +36,8 @@ export const seedWorks: unknown[] = [
   // given only where they are known without looking them up; the rest are null
   // rather than guessed, because a wrong year is a fact Nidus got wrong and this
   // catalogue has exactly one job.
+  { id: 'innovators-dilemma', title: "The Innovator's Dilemma", author: 'Clayton M. Christensen', firstPublished: 1997, fiction: false, provenance: DRAFT },
+  { id: 'innovators-solution', title: "The Innovator's Solution", author: 'Clayton M. Christensen and Michael E. Raynor', firstPublished: 2003, fiction: false, provenance: DRAFT },
   { id: 'be-2-0', title: 'BE 2.0 (Beyond Entrepreneurship 2.0)', author: 'Jim Collins and Bill Lazier', firstPublished: 2020, fiction: false, provenance: DRAFT },
   { id: 'five-dysfunctions', title: 'The Five Dysfunctions of a Team', author: 'Patrick Lencioni', firstPublished: 2002, fiction: false, provenance: DRAFT },
   { id: 'e-myth', title: 'The E-Myth Revisited', author: 'Michael E. Gerber', firstPublished: 1995, fiction: false, provenance: DRAFT },
@@ -92,6 +94,8 @@ export const seedEditions: unknown[] = [
   ed('malgudi-days-en', 'malgudi-days', 'en'),
   ed('train-to-pakistan-en', 'train-to-pakistan', 'en'),
   ed('train-to-pakistan-hi', 'train-to-pakistan', 'hi'),
+  ed('innovators-dilemma-en', 'innovators-dilemma', 'en'),
+  ed('innovators-solution-en', 'innovators-solution', 'en'),
   ed('be-2-0-en', 'be-2-0', 'en'),
   ed('five-dysfunctions-en', 'five-dysfunctions', 'en'),
   ed('e-myth-en', 'e-myth', 'en'),
@@ -247,6 +251,25 @@ export const seedProfiles: unknown[] = [
     conceptualDifficulty: 3, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 5,
     targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [], suggestedArtifact: null,
     provenance: { ...EDITORIAL, note: 'Contains Partition violence. Not restful reading.' },
+  },
+  {
+    workId: 'innovators-dilemma',
+    inOneLine: 'Why well-run companies lose to worse products, and why doing everything right is how it happens.',
+    modes: ['explore'], topics: ['strategy', 'judgement', 'company-building'],
+    conceptualDifficulty: 4, typicalSessionMinutes: 30, actionability: 1, emotionalIntensity: 1,
+    targetStages: ['EXPLORE', 'VALIDATE', 'STRUCTURE'], competencyTags: ['strategy'],
+    prerequisites: [], tooEarlyStages: [], suggestedArtifact: null,
+    provenance: { ...EDITORIAL, note: 'Written about incumbents, read by challengers. Useful for seeing where an incumbent cannot follow you — not a plan for your week.' },
+  },
+  {
+    workId: 'innovators-solution',
+    inOneLine: 'The sequel, which asks what you should actually build if you want to be the one doing the disrupting.',
+    modes: ['explore', 'apply'], topics: ['strategy', 'company-building', 'judgement'],
+    conceptualDifficulty: 4, typicalSessionMinutes: 30, actionability: 2, emotionalIntensity: 1,
+    targetStages: ['STRUCTURE', 'SCALE_RENEW'], competencyTags: ['strategy'],
+    prerequisites: ['innovators-dilemma'], tooEarlyStages: ['EXPLORE', 'VALIDATE'],
+    suggestedArtifact: 'One job your product is hired to do, written in the words of someone who hired it',
+    provenance: { ...EDITORIAL, note: 'Assumes the first book. Aimed at companies choosing between growth bets, which is a problem you earn.' },
   },
   {
     workId: 'be-2-0',

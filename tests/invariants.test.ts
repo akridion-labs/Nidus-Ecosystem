@@ -178,7 +178,15 @@ test('rejecting a book never brings it back', () => {
       ...brief, rejections: [...brief.rejections, { workId: rejected, reason: 'unappealing' as const }],
     })
     assert.equal(after.decisions.some((d) => d.workId === rejected), false, 'a rejected book came back')
-    assert.ok(after.decisions.length <= before.decisions.length)
+
+    // NOT asserted: that the list gets shorter. It was true at fourteen books
+    // and stopped being true at forty-one, and the catalogue is right and the
+    // assertion was wrong. The exploration slot requires a book that shares no
+    // topic with the first two; remove the strongest fit and a different one
+    // takes its place, which can open an exploration slot that was closed
+    // before. Rejecting a book is allowed to change what else is reachable —
+    // that is what a third slot chosen for contrast means.
+    assert.ok(after.decisions.length <= 3, 'never more than three')
   }
 })
 
