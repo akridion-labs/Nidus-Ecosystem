@@ -11,12 +11,16 @@ import { readFileSync } from 'node:fs'
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
 
-test('the static hero headline matches OPENINGS[0]', () => {
-  const first = /id: 'decision',\s*\n\s*line: '([^']+)'/.exec(app)?.[1]
-  assert.ok(first, 'could not find the first opening in App.tsx')
+test('the static hero headline matches the one React renders', () => {
+  // Two copies of one sentence is a drift waiting to happen, and the failure
+  // is silent: the visitor reads one headline and watches it change when the
+  // bundle boots. The headline moved from a situation to the product's own
+  // question when the page got a front door; this follows it.
+  const rendered = /className="display rise mt-10[^"]*"\s*\n[^>]*>\s*\n?\s*([^<\n]+)/.exec(app)?.[1]?.trim()
+  assert.ok(rendered, 'could not find the rendered headline in App.tsx')
   assert.ok(
-    html.includes(first),
-    `index.html must contain the first opening verbatim.\n  expected: ${first}`,
+    html.includes(rendered),
+    `index.html must contain the rendered headline verbatim.\n  expected: ${rendered}`,
   )
 })
 

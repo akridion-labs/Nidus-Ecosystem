@@ -25,8 +25,15 @@ test('finishing a prerequisite opens the book that assumed it', () => {
   // premature before there is a team. At OPERATE_LEAD both conditions are met.
   const b = founder('OPERATE_LEAD', { intents: [{ workId: 'lean-startup', status: 'COMPLETED' }] })
   const { ready, stillEarly } = unlockedBy(loaded, 'lean-startup', b)
-  assert.deepEqual(ready.map((i) => i.work.id), ['hard-thing'])
-  assert.equal(stillEarly.length, 0)
+  // Membership, not a snapshot. The catalogue is meant to grow, and a test
+  // that pins the exact list fails every time a book is added without
+  // anything being wrong — which teaches people to edit tests rather than
+  // read them.
+  assert.ok(ready.some((i) => i.work.id === 'hard-thing'), 'hard-thing should be open')
+  assert.equal(stillEarly.some((x) => x.item.work.id === 'hard-thing'), false)
+  for (const i of ready) {
+    assert.ok(i.profile.prerequisites.includes('lean-startup'), `${i.work.id} does not assume it`)
+  }
 })
 
 test('reading is not enough when the situation has not happened', () => {
@@ -34,9 +41,10 @@ test('reading is not enough when the situation has not happened', () => {
   // rather than pretending the reading was the gate.
   const b = founder('VALIDATE', { intents: [{ workId: 'lean-startup', status: 'COMPLETED' }] })
   const { ready, stillEarly } = unlockedBy(loaded, 'lean-startup', b)
-  assert.equal(ready.length, 0)
-  assert.deepEqual(stillEarly.map((x) => x.item.work.id), ['hard-thing'])
-  assert.match(stillEarly[0].because, /waits on the situation/)
+  assert.equal(ready.some((i) => i.work.id === 'hard-thing'), false, 'too early to be ready')
+  const held = stillEarly.find((x) => x.item.work.id === 'hard-thing')
+  assert.ok(held, 'hard-thing should be held back, not dropped')
+  assert.match(held.because, /waits on the situation/)
 })
 
 test('a book already finished is never offered as an unlock', () => {
@@ -46,7 +54,10 @@ test('a book already finished is never offered as an unlock', () => {
       { workId: 'hard-thing', status: 'COMPLETED' },
     ],
   })
-  assert.equal(unlockedBy(loaded, 'lean-startup', b).ready.length, 0)
+  const { ready, stillEarly } = unlockedBy(loaded, 'lean-startup', b)
+  for (const list of [ready, stillEarly.map((x) => x.item)]) {
+    assert.equal(list.some((i) => i.work.id === 'hard-thing'), false, 'a finished book came back')
+  }
 })
 
 test('a book on your pile is not offered as your next read', () => {

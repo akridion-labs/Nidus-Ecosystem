@@ -15,6 +15,8 @@ import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
 import { readingPath, findRoutes, SPEED_COPY } from './domain/path.ts'
+import { ASPIRATIONS, aspirationPlan } from './domain/aspirations.ts'
+import type { Aspiration } from './domain/aspirations.ts'
 import { PUBLIC_DOMAIN_WORKS } from './data/catalogue.seed.ts'
 import type { Shelf } from './domain/shelves.ts'
 import type { CoverageGap, Ineligible } from './domain/ranker.ts'
@@ -176,6 +178,76 @@ const OPENINGS: Opening[] = [
     brief: { purpose: 'craft', mode: 'apply', sessionMinutes: 30 },
   },
 ]
+
+/**
+ * The ladder: what an aspiration actually breaks into.
+ *
+ * This is the mentor move the product was missing. Everything else answers
+ * "what does tonight look like"; nobody had asked what the reader is trying to
+ * become, which is the question that makes the tonight question mean anything.
+ *
+ * Two things are shown that a recommender normally hides. The stages are
+ * labelled as ONE way to break it down, because nobody measured this order —
+ * it was reasoned by a person and presenting it as discovered would be a lie
+ * with a diagram. And every ladder ends with what reading will not do for it,
+ * which is the half that stops this being a promise.
+ */
+function Ladder({ aspiration, brief, onStart, onClose }: {
+  aspiration: Aspiration
+  brief: Brief
+  onStart: (a: Aspiration, stageIndex: number) => void
+  onClose: () => void
+}) {
+  const plan = aspirationPlan(catalogue, aspiration, brief)
+  return (
+    <div className="lift mt-8 rounded-2xl border border-accent bg-surface p-5 sm:p-7">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="label-caps text-accent">{aspiration.tag}</p>
+          <h2 className="book-voice mt-1 text-[1.75rem]">{aspiration.means}</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="transition-ui label-caps min-h-11 shrink-0 rounded-lg border border-line px-3 text-muted hover:border-accent hover:text-ink"
+        >
+          Close
+        </button>
+      </div>
+
+      <p className="label-caps mt-6 text-muted">One way to break it down</p>
+      <ol className="mt-3 space-y-5">
+        {plan.map((p, i) => (
+          <li key={p.stage.name} className={p.youAreHere ? 'rounded-xl border border-accent bg-accent-soft p-4' : 'pl-4'}>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="label-caps text-muted">{i + 1}</span>
+              <span className="book-voice text-[1.25rem]">{p.stage.name}</span>
+              {p.youAreHere && <span className="label-caps text-accent">You are here</span>}
+            </div>
+            <p className="mt-1 max-w-[52ch] text-[15px] text-muted">{p.stage.means}</p>
+            <p className="mt-2 text-[14px] text-muted">
+              {p.books.length} {p.books.length === 1 ? 'book' : 'books'} here
+              {p.finished > 0 && ` · ${p.finished} finished`}
+            </p>
+            {p.youAreHere && p.books.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onStart(aspiration, i)}
+                className="transition-ui mt-3 min-h-12 rounded-xl bg-accent px-5 text-[16px] font-semibold text-surface hover:opacity-90 active:scale-[0.98]"
+              >
+                Start here tonight
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-6 max-w-[56ch] rounded-lg border border-amber bg-amber-soft p-3 text-[15px]">
+        <strong className="font-medium">What reading will not do:</strong> {aspiration.cannotDo}
+      </p>
+    </div>
+  )
+}
 
 const STEP_COPY: Record<'done' | 'now' | 'next' | 'later', { label: string; tone: string }> = {
   done: { label: 'Read', tone: 'text-muted' },
@@ -680,6 +752,18 @@ export default function App() {
   const [currentDecision, setCurrentDecision] = useState('')
   const [activeApplyBooks, setActiveApplyBooks] = useState(0)
 
+  // Topics the reader confirmed by TAPPING something — an aspiration stage or
+  // a shelf. Not inferred from behaviour, which is the distinction the brief
+  // has always drawn: `confirmedTopics` is worth 10 points precisely because
+  // it is a choice rather than a guess.
+  //
+  // Until this existed, the stage's topics never reached the ranker at all:
+  // picking "see how money actually moves" passed only purpose=curiosity, and
+  // curiosity's topic list contains 'travel', so #financialfreedom answered
+  // with The Art of Travel. It also means the history component stops being a
+  // constant 5/10 on every card.
+  const [confirmedTopics, setConfirmedTopics] = useState<string[]>([])
+
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
   // Two different claims, kept apart because they are different. "I will read
   // this" is a decision; "I read this" is an event. Only the second can unlock
@@ -707,6 +791,9 @@ export default function App() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
+  const [aspirationId, setAspirationId] = useState<string | null>(null)
+  const aspiration = ASPIRATIONS.find((a) => a.id === aspirationId) ?? null
+
   const [openingId, setOpeningId] = useState(OPENINGS[0].id)
   // Bumped on every answer so the trace and the arithmetic replay rather than
   // silently swapping to new values.
@@ -727,6 +814,19 @@ export default function App() {
     setPurpose(shelf.brief.purpose)
     setMode(shelf.brief.mode)
     setSessionMinutes(shelf.brief.sessionMinutes)
+    setConfirmedTopics(shelf.topics)
+    setAuthor(null)
+    answer()
+    document.getElementById('results')?.scrollIntoView({ block: 'start' })
+  }
+
+  function applyAspiration(a: Aspiration, stageIndex: number) {
+    const st = a.stages[stageIndex]
+    setPurpose(st.brief.purpose)
+    setMode(st.brief.mode)
+    setSessionMinutes(st.brief.sessionMinutes)
+    if (st.brief.stage) setStage(st.brief.stage)
+    setConfirmedTopics(st.topics)
     setAuthor(null)
     answer()
     document.getElementById('results')?.scrollIntoView({ block: 'start' })
@@ -739,6 +839,8 @@ export default function App() {
     setSessionMinutes(o.brief.sessionMinutes)
     if (o.brief.stage) setStage(o.brief.stage)
     setActiveApplyBooks(o.brief.activeApplyBooks ?? 0)
+    // A situation is a moment, not a stated preference. It carries no topics.
+    setConfirmedTopics([])
     setAuthor(null)
     answer()
   }
@@ -760,9 +862,10 @@ export default function App() {
           ...finished.map((workId) => ({ workId, status: 'COMPLETED' as const })),
         ],
         rejections,
+        confirmedTopics,
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -828,18 +931,98 @@ export default function App() {
             </div>
           </div>
 
-          {/* The cold open. The situation is the headline; the product is the
-              answer to it. Nothing is asked before something is offered. */}
+          {/* The core of Nidus, said once, before anything is asked.
+              The page used to open on one of six situations, which is a good
+              hook and a bad front door: a first-time visitor met a sentence
+              about 11:40pm with no idea what the product was. */}
           <h1
-            key={opening.id}
-            className="display rise mt-8 max-w-[19ch] text-[clamp(2.25rem,7.5vw,4.25rem)]"
+            className="display rise mt-10 max-w-[16ch] text-[clamp(2.5rem,9vw,5rem)]"
             style={{ animationDelay: '80ms' }}
           >
-            {opening.line}
+            What are you building?
           </h1>
 
+          <p
+            className="rise mt-5 max-w-[52ch] text-[17px] text-muted"
+            style={{ animationDelay: '180ms' }}
+          >
+            Nidus gives you <span className="text-ink">one book</span> for where you actually are,
+            shows the arithmetic that chose it, and tells you what the book cannot do. No account,
+            nothing to fill in, and it never offers you the same book twice.
+          </p>
+
+          <div className="rise mt-8" style={{ animationDelay: '280ms' }}>
+            <p className="label-caps mb-3 text-muted">Pick the one that is yours</p>
+            <div className="flex flex-wrap gap-2">
+              {ASPIRATIONS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  aria-pressed={aspirationId === a.id}
+                  onClick={() => setAspirationId((id) => (id === a.id ? null : a.id))}
+                  className={[
+                    'transition-ui min-h-12 rounded-xl border px-4 text-[16px]',
+                    aspirationId === a.id
+                      ? 'border-accent bg-accent-soft text-ink'
+                      : 'border-line bg-surface text-muted hover:-translate-y-px hover:border-accent hover:text-ink',
+                  ].join(' ')}
+                >
+                  <span style={{ fontFamily: 'var(--font-display)' }}>{a.tag}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {aspiration && (
+            <Ladder
+              key={aspiration.id}
+              aspiration={aspiration}
+              brief={brief}
+              onStart={applyAspiration}
+              onClose={() => setAspirationId(null)}
+            />
+          )}
+
+          {/* The situations, demoted to the second door. They are still the
+              fastest route to a book and they are no longer the first thing a
+              stranger meets. */}
+          <details className="rise mt-8 rounded-xl border border-line bg-surface p-4" style={{ animationDelay: '380ms' }}>
+            <summary className="label-caps min-h-11 cursor-pointer py-2 text-muted">
+              Or skip it — just tell me about tonight
+            </summary>
+
+            <p className="book-voice mt-3 max-w-[30ch] text-[1.5rem]">{opening.line}</p>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => applyOpening(opening)}
+                className="transition-ui min-h-12 rounded-xl bg-accent px-6 text-[17px] font-semibold text-surface hover:opacity-90 active:scale-[0.98]"
+              >
+                That is my evening — find the book
+              </button>
+              <span className="text-[15px] text-muted">One tap.</span>
+            </div>
+
+            <div className="mt-6">
+              <p className="label-caps mb-2 text-muted">Or another evening</p>
+              <div className="flex flex-wrap gap-2">
+                {OPENINGS.filter((o) => o.id !== opening.id).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => applyOpening(o)}
+                    className="transition-ui min-h-11 rounded-xl border border-line bg-paper px-4 text-[15px] text-muted hover:-translate-y-px hover:border-accent hover:text-ink"
+                  >
+                    {o.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </details>
+
           {themeWasAutomatic && theme === 'night' && (
-            <p className="rise mt-4 text-[15px] text-muted" style={{ animationDelay: '180ms' }}>
+            <p className="rise mt-6 text-[15px] text-muted" style={{ animationDelay: '460ms' }}>
               It is late where you are, so Nidus dimmed the page.{' '}
               <button
                 type="button"
@@ -850,33 +1033,6 @@ export default function App() {
               </button>
             </p>
           )}
-
-          <div className="rise mt-8 flex flex-wrap items-center gap-3" style={{ animationDelay: '260ms' }}>
-            <button
-              type="button"
-              onClick={() => applyOpening(opening)}
-              className="transition-ui min-h-12 rounded-xl bg-accent px-6 text-[17px] font-semibold text-surface hover:opacity-90 active:scale-[0.98]"
-            >
-              That is my evening — find the book
-            </button>
-            <span className="text-[15px] text-muted">One tap. No account, nothing to fill in.</span>
-          </div>
-
-          <div className="rise mt-7" style={{ animationDelay: '380ms' }}>
-            <p className="label-caps mb-2 text-muted">Or another evening</p>
-            <div className="flex flex-wrap gap-2">
-              {OPENINGS.filter((o) => o.id !== opening.id).map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => applyOpening(o)}
-                  className="transition-ui min-h-11 rounded-xl border border-line bg-surface px-4 text-[15px] text-muted hover:-translate-y-px hover:border-accent hover:text-ink"
-                >
-                  {o.short}
-                </button>
-              ))}
-            </div>
-          </div>
         </header>
 
         <main className="pb-24">

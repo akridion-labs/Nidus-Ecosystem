@@ -11,7 +11,7 @@ import { PUBLIC_DOMAIN_WORKS } from '../data/catalogue.seed.ts'
  * and the catalogue version, so a changed recommendation can be explained
  * later instead of argued about.
  */
-export const RANKER_VERSION = 'nidus-ranker-0.4.0-pilot'
+export const RANKER_VERSION = 'nidus-ranker-0.5.0-pilot'
 
 /* ================================================================== *
  * 1. Eligibility — a binary gate that runs before any scoring.
@@ -106,7 +106,7 @@ function accessFit(route: AccessRoute): number {
 const PURPOSE_TOPICS: Record<Purpose, string[]> = {
   unwind: ['solitude', 'short-stories', 'everyday-life', 'journey', 'persistence'],
   curiosity: ['curiosity', 'history', 'meaning', 'attention', 'bias', 'travel', 'india', 'money'],
-  craft: ['craft', 'focus', 'discipline', 'attention', 'endurance'],
+  craft: ['craft', 'focus', 'discipline', 'attention', 'endurance', 'habits', 'product'],
   decision: ['decision', 'judgement', 'moral-choice', 'composure', 'strategy', 'bias'],
   // Selling, persuasion, team and systems arrived with the October catalogue
   // and were scoring zero until they were named here — a topic no purpose maps
@@ -114,12 +114,39 @@ const PURPOSE_TOPICS: Record<Purpose, string[]> = {
   'company-building': [
     'company-building', 'validation', 'management', 'customer-research', 'experiments',
     'selling', 'persuasion', 'team', 'systems',
+    // October catalogue. A topic no purpose maps to is a book the ranker can
+    // see and can never choose, which is worse than not having the book.
+    'positioning', 'pricing', 'marketing', 'negotiation', 'product', 'finance', 'communication',
   ],
 }
 
 function topicFit(item: CatalogueItem, purpose: Purpose): number {
   const wanted = PURPOSE_TOPICS[purpose]
   const hits = item.profile.topics.filter((t) => wanted.includes(t)).length
+  return Math.min(hits, 2) / 2
+}
+
+/**
+ * What the reader is actually after, at the most specific level they have
+ * told us.
+ *
+ * A purpose is broad: 'company-building' covers validation, selling, pricing,
+ * management and six other things. When the reader has picked an aspiration
+ * stage or a shelf, they have said something narrower, and the narrower
+ * statement should win — otherwise every book under the whole purpose scores
+ * the same and the choice they just made changed nothing.
+ *
+ * This matters most in the founder branch, which has no history term at all:
+ * `confirmedTopics` reached the generic branch and was silently ignored in
+ * the founder one, so "say the true thing, kindly" ranked a book about
+ * business systems above the book about feedback.
+ *
+ * Confirmed topics mean TAPPED, never inferred — the contract has always said
+ * so, and this does not change that.
+ */
+function focusFit(item: CatalogueItem, brief: ReadingBrief, purpose: Purpose): number {
+  if (brief.confirmedTopics.length === 0) return topicFit(item, purpose)
+  const hits = item.profile.topics.filter((t) => brief.confirmedTopics.includes(t)).length
   return Math.min(hits, 2) / 2
 }
 
@@ -141,7 +168,13 @@ function timeAndDifficultyFit(item: CatalogueItem, brief: ReadingBrief): number 
 function confirmedHistoryFit(item: CatalogueItem, brief: ReadingBrief): number {
   if (brief.confirmedTopics.length === 0) return 0.5 // unknown, not zero
   const hits = item.profile.topics.filter((t) => brief.confirmedTopics.includes(t)).length
-  return Math.min(hits, 1)
+  // Capped at 2, matching topicFit, rather than at 1. While this was binary,
+  // a book covering both confirmed topics scored the same as one covering a
+  // single topic, so "say the true thing, kindly" (feedback + management)
+  // ranked The E-Myth Revisited, which matches only management, above Radical
+  // Candor, which matches both. The cap exists so that a book tagged with
+  // twelve topics cannot farm the term; 2 is enough to break that tie.
+  return Math.min(hits, 2) / 2
 }
 
 /* ================================================================== *
@@ -168,20 +201,33 @@ function contextFit(item: CatalogueItem, brief: ReadingBrief): number {
   // A heavy book in a short restful session is not ready-to-hand.
   const heavy = item.profile.emotionalIntensity >= 4 && brief.mode === 'enjoy'
   const long = item.profile.typicalSessionMinutes > brief.sessionMinutes
-  return heavy ? 0 : long ? 0.4 : 1
+  // Nor is a sequel. Only the founder branch read prerequisites, so asking
+  // about money in Explore mode offered Rich Dad's Cashflow Quadrant — a book
+  // whose own profile says it assumes the one before it — ahead of books that
+  // assume nothing. Readiness is exactly the term this belongs in: the book
+  // may be excellent and is not the one to pick up first.
+  const assumesUnread = missingPrerequisites(item, brief).length > 0
+  if (heavy) return 0
+  if (assumesUnread) return long ? 0.2 : 0.4
+  return long ? 0.4 : 1
 }
 
 function scoreGeneric(item: CatalogueItem, brief: ReadingBrief) {
   const route = accessRoute(item, brief)
+  // Computed once. It was called twice, once for the score and once to choose
+  // the sentence, which is how the two could in principle disagree.
+  const context = contextFit(item, brief)
   const parts: [keyof typeof GENERIC_WEIGHTS, number, string][] = [
-    ['purpose', topicFit(item, brief.purpose),
+    ['purpose', focusFit(item, brief, brief.purpose),
       describeTopics(item, brief.purpose)],
     ['mode', modeFit(item, brief.mode),
       `Suits ${brief.mode} reading.`],
-    ['context', contextFit(item, brief),
-      contextFit(item, brief) >= 1
+    ['context', context,
+      context >= 1
         ? 'Ready to pick up in the session you described.'
-        : 'Asks for more room than this session gives it.'],
+        : missingPrerequisites(item, brief).length > 0
+          ? `Assumes you have read ${missingPrerequisites(item, brief).join(', ')} first.`
+          : 'Asks for more room than this session gives it.'],
     ['timeDifficulty', timeAndDifficultyFit(item, brief),
       `Reads in chunks of about ${item.profile.typicalSessionMinutes} minutes; you have ${brief.sessionMinutes}.`],
     ['access', accessFit(route), describeAccess(route)],
@@ -235,7 +281,7 @@ function scoreFounder(item: CatalogueItem, brief: ReadingBrief) {
   const components: ScoreComponent[] = [
     {
       signal: 'purpose', maxPoints: FOUNDER_WEIGHTS.purpose,
-      points: round(FOUNDER_WEIGHTS.purpose * topicFit(item, 'company-building')),
+      points: round(FOUNDER_WEIGHTS.purpose * focusFit(item, brief, 'company-building')),
       text: describeTopics(item, 'company-building'),
     },
     {

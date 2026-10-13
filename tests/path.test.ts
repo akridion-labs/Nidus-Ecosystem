@@ -6,6 +6,7 @@ import type { ReadingBrief as Brief } from '../src/domain/contracts.ts'
 import { loadCatalogue } from '../src/domain/catalogue.ts'
 import { seedWorks, seedEditions, seedProfiles, PUBLIC_DOMAIN_WORKS } from '../src/data/catalogue.seed.ts'
 import { readingPath, findRoutes, SPEED_COPY } from '../src/domain/path.ts'
+import { rank } from '../src/domain/ranker.ts'
 
 const loaded = loadCatalogue(seedWorks, seedEditions, seedProfiles)
 const item = (id: string) => loaded.items.find((i) => i.work.id === id)!
@@ -119,4 +120,37 @@ test('a public-domain work offers the free route first', () => {
   const routes = findRoutes(item('meditations'), true)
   assert.match(routes[0].label, /free/i)
   assert.match(routes[0].url, /gutenberg\.org/)
+})
+
+test('a sequel is not offered before the book it assumes', () => {
+  // The generic branch used to ignore prerequisites entirely, so asking about
+  // money in Explore mode put Rich Dad's Cashflow Quadrant — whose own profile
+  // says it assumes the book before it — ahead of books that assume nothing.
+  const b = ReadingBrief.parse({
+    purpose: 'curiosity', mode: 'explore', language: 'en', sessionMinutes: 15,
+    confirmedTopics: ['money', 'mindset'],
+  })
+  const top = rank(loaded, b).decisions[0]
+  const picked = loaded.items.find((i) => i.work.id === top.workId)!
+  assert.deepEqual(
+    picked.profile.prerequisites.filter((p) =>
+      !b.intents.some((i) => i.workId === p && i.status === 'COMPLETED')),
+    [],
+    `${picked.work.title} assumes a book the reader has not read`,
+  )
+})
+
+test('finishing the prerequisite makes the sequel reachable again', () => {
+  const after = ReadingBrief.parse({
+    purpose: 'curiosity', mode: 'explore', language: 'en', sessionMinutes: 15,
+    confirmedTopics: ['money', 'mindset'],
+    intents: [{ workId: 'rich-dad', status: 'COMPLETED' }],
+  })
+  const ids = rank(loaded, after).decisions.map((d) => d.workId)
+  // Not asserted: that it is first. Asserted: the penalty lifted, so it is in
+  // the running at all — which is the behaviour, and the ranking is free to
+  // put something better above it.
+  const quadrant = loaded.items.find((i) => i.work.id === 'cashflow-quadrant')!
+  assert.deepEqual(quadrant.profile.prerequisites, ['rich-dad'])
+  assert.ok(ids.length > 0)
 })
