@@ -80,12 +80,36 @@ test('facts and editorial inference carry separate provenance', () => {
   }
 })
 
-test('no seeded row claims verification it does not have', () => {
-  for (const item of loaded.items) {
-    assert.equal(item.work.provenance.confirmedAt, null, item.work.id)
-    assert.equal(item.profile.provenance.confirmedAt, null, item.work.id)
-    for (const e of item.editions) assert.equal(e.provenance.confirmedAt, null, e.id)
+test('a confirmed row names a real source and a date; an unconfirmed one claims nothing', () => {
+  // This used to assert that NOTHING was confirmed, which was true when nothing
+  // was and became a test of the calendar rather than of the code. The real
+  // invariant is the one the reader depends on: `confirmedAt` is non-null only
+  // where a named source was actually checked, because the card drops its
+  // "edition details are a draft" warning the moment it is set.
+  const draftSources = new Set(['manual-draft', 'editorial-draft'])
+  const rows = loaded.items.flatMap((item) => [
+    { id: item.work.id, p: item.work.provenance },
+    { id: `${item.work.id} profile`, p: item.profile.provenance },
+    ...item.editions.map((e) => ({ id: e.id, p: e.provenance })),
+  ])
+  for (const { id, p } of rows) {
+    if (p.confirmedAt === null) continue
+    assert.ok(!draftSources.has(p.source), `${id} is confirmed but its source is still a draft label`)
+    assert.ok(p.source.length > 12, `${id} is confirmed but the source is too vague to check: "${p.source}"`)
+    assert.match(p.confirmedAt, /^\d{4}-\d{2}-\d{2}$/, `${id} has no real confirmation date`)
   }
+  // Editorial judgement is not a fact and cannot be confirmed against a source.
+  for (const item of loaded.items) {
+    assert.equal(item.profile.provenance.confirmedAt, null, `${item.work.id} profile`)
+  }
+})
+
+test('the catalogue reports how much of itself is unconfirmed', () => {
+  // The number on the page and the number in this assertion come from the same
+  // place, so the honesty footer cannot drift away from the data behind it.
+  const confirmed = loaded.items.filter((i) => i.work.provenance.confirmedAt !== null)
+  assert.ok(confirmed.length < loaded.items.length,
+    'if every row is confirmed, the UI copy about unconfirmed rows needs rewriting')
 })
 
 test('a work with no valid edition is rejected, not shown without one', () => {

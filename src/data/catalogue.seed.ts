@@ -16,6 +16,22 @@
 const DRAFT = { source: 'manual-draft', confirmedAt: null }
 const EDITORIAL = { source: 'editorial-draft', confirmedAt: null }
 
+/**
+ * A row that a named source actually confirms, with the date it was checked.
+ *
+ * This is the only shape allowed to carry a non-null `confirmedAt`, and setting
+ * one is a claim: somebody compared this row to a real bibliographic record and
+ * it matched. It is not a tidiness flag. The ranker reads it — an unconfirmed
+ * row tells the reader on the card that its edition details are a draft — so a
+ * confirmation that nobody performed would silently remove a warning the reader
+ * is relying on.
+ *
+ * Open Library is still outside the egress allowlist here and from Deepak's
+ * device VM, so `tools/import-openlibrary.mjs` cannot run yet. These are hand
+ * confirmations against a named catalogue record, one at a time.
+ */
+const confirmedBy = (source: string, confirmedAt: string) => ({ source, confirmedAt })
+
 export const seedWorks: unknown[] = [
   { id: 'lean-startup', title: 'The Lean Startup', author: 'Eric Ries', firstPublished: 2011, fiction: false, provenance: DRAFT },
   { id: 'mom-test', title: 'The Mom Test', author: 'Rob Fitzpatrick', firstPublished: 2013, fiction: false, provenance: DRAFT },
@@ -67,7 +83,7 @@ export const seedWorks: unknown[] = [
   { id: 'e-myth', title: 'The E-Myth Revisited', author: 'Michael E. Gerber', firstPublished: 1995, fiction: false, provenance: DRAFT },
   { id: 'radical-candor', title: 'Radical Candor', author: 'Kim Scott', firstPublished: 2017, fiction: false, provenance: DRAFT },
   { id: 'think-like-monk', title: 'Think Like a Monk', author: 'Jay Shetty', firstPublished: 2020, fiction: false, provenance: DRAFT },
-  { id: 'hundred-dollar-startup', title: 'The $100 Startup', author: 'Chris Guillebeau', firstPublished: 2012, fiction: false, provenance: DRAFT },
+  { id: 'hundred-dollar-startup', title: 'The $100 Startup', author: 'Chris Guillebeau', firstPublished: 2012, fiction: false, provenance: confirmedBy('Wake County Public Libraries catalogue record 666539', '2026-10-17') },
   { id: 'awaken-giant', title: 'Awaken the Giant Within', author: 'Anthony Robbins', firstPublished: 1991, fiction: false, provenance: DRAFT },
   { id: 'art-of-impossible', title: 'The Art of Impossible', author: 'Steven Kotler', firstPublished: 2021, fiction: false, provenance: DRAFT },
   { id: 'do-hard-things', title: 'Do Hard Things', author: 'Steve Magness', firstPublished: 2022, fiction: false, provenance: DRAFT },
@@ -89,8 +105,11 @@ export const seedWorks: unknown[] = [
   { id: 'fountainhead', title: 'The Fountainhead', author: 'Ayn Rand', firstPublished: 1943, fiction: true, provenance: DRAFT },
 ]
 
-const ed = (id: string, workId: string, language: string) => ({
-  id, workId, language, isbn13: null, format: 'print', pages: null, provenance: DRAFT,
+const ed = (
+  id: string, workId: string, language: string,
+  over: { isbn13?: string; pages?: number; provenance?: unknown } = {},
+) => ({
+  id, workId, language, isbn13: null, format: 'print', pages: null, provenance: DRAFT, ...over,
 })
 
 export const seedEditions: unknown[] = [
@@ -151,7 +170,12 @@ export const seedEditions: unknown[] = [
   ed('radical-candor-en', 'radical-candor', 'en'),
   ed('think-like-monk-en', 'think-like-monk', 'en'),
   ed('think-like-monk-hi', 'think-like-monk', 'hi'),
-  ed('hundred-dollar-startup-en', 'hundred-dollar-startup', 'en'),
+  // First confirmed edition in the catalogue. Crown Business, New York, 2012,
+  // xviii + 285 pages, checked 17 October 2026 against the library record.
+  ed('hundred-dollar-startup-en', 'hundred-dollar-startup', 'en', {
+    isbn13: '9780307951526', pages: 285,
+    provenance: confirmedBy('Wake County Public Libraries catalogue record 666539', '2026-10-17'),
+  }),
   ed('awaken-giant-en', 'awaken-giant', 'en'),
   ed('art-of-impossible-en', 'art-of-impossible', 'en'),
   ed('do-hard-things-en', 'do-hard-things', 'en'),
