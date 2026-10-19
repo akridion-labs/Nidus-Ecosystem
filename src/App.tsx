@@ -11,6 +11,7 @@ import { catalogue } from './data/catalogue.ts'
 import type { CatalogueItem } from './domain/catalogue.ts'
 import { Wordmark } from './brand/Wordmark.tsx'
 import { Spine } from './brand/Spine.tsx'
+import { ReadingScene } from './brand/ReadingScene.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
@@ -959,24 +960,48 @@ export default function App() {
             </div>
           </div>
 
-          {/* The core of Nidus, said once, before anything is asked.
+
+          {/* The front door.
               The page used to open on one of six situations, which is a good
               hook and a bad front door: a first-time visitor met a sentence
-              about 11:40pm with no idea what the product was. */}
-          <h1
-            className="display rise mt-10 max-w-[16ch] text-[clamp(2.5rem,9vw,5rem)]"
-            style={{ animationDelay: '80ms' }}
-          >
-            What are you building?
-          </h1>
+              about 11:40pm with no idea what the product was. Then it opened
+              on the question, which is better and still starts by asking
+              rather than showing.
 
-          <p
-            className="rise mt-5 max-w-[52ch] text-[17px] text-muted"
-            style={{ animationDelay: '180ms' }}
-          >
-            Nidus gives you one book for where you actually are, shows the arithmetic that chose
-            it, and tells you what the book cannot do.
-          </p>
+              This is a welcome, and it is NOT a login wall. A sign-up form in
+              front of a product nobody has seen is the most expensive thing a
+              pilot with no users can do: it costs the visitor before it has
+              given them anything, and it would make the link unshareable until
+              consent, retention and deletion exist. The account comes later
+              and asks for less, which is the rule the accounts document set. */}
+          <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+            <div className="lg:col-span-7">
+              <h1
+                className="display rise mt-10 max-w-[16ch] text-[clamp(2.5rem,9vw,5rem)]"
+                style={{ animationDelay: '80ms' }}
+              >
+                What are you building?
+              </h1>
+
+              <p
+                className="rise mt-5 max-w-[52ch] text-[17px] text-muted"
+                style={{ animationDelay: '180ms' }}
+              >
+                Nidus gives you one book for where you actually are, shows the arithmetic that chose
+                it, and tells you what the book cannot do.
+              </p>
+            </div>
+
+            {/* Beside the question on a wide screen, under it on a phone, and
+                smaller there. Measured: at 390px the scene above the headline
+                pushed the first hashtag 700px down the page, which undoes the
+                reason the hero was trimmed in the first place. DOM order is
+                text first, so no order utilities are needed to get this right —
+                they were what broke it. */}
+            <div className="rise mt-8 flex justify-center lg:col-span-5 lg:mt-0" style={{ animationDelay: '240ms' }}>
+              <ReadingScene />
+            </div>
+          </div>
 
           <div className="rise mt-8" style={{ animationDelay: '280ms' }}>
             <p className="label-caps mb-3 text-muted">Pick the one that is yours</p>
@@ -1004,6 +1029,31 @@ export default function App() {
             <p className="mt-3 text-[15px] text-muted">
               No account, nothing to fill in, and it never offers you the same book twice.
             </p>
+          {/* Sign-in, said honestly before it exists, and placed where the
+              question actually occurs to someone: after they have seen there
+              is no form, not above the headline where it was the first and
+              largest thing on the page.
+              A "Sign in" button that does nothing is a worse lie than no
+              button at all, and a product whose pitch is that it shows its
+              working cannot open with a dead control. This says what is
+              coming, what it will ask for, and what it will not — and it says
+              out loud that right now nothing survives a reload, which is the
+              single most important thing a first visitor can know. */}
+          <details className="mt-3 max-w-[62ch]">
+            <summary className="min-h-11 cursor-pointer list-none py-2 text-[15px] text-muted underline decoration-line underline-offset-4 hover:text-ink">
+              Wait — where is the sign in?
+            </summary>
+            <p className="mt-2 text-[15px] text-muted">
+              Nidus works without an account and will keep working without one. Everything you do
+              here lives in this browser tab and is gone when you reload — including which books
+              you have finished, which is exactly what an account is for.
+            </p>
+            <p className="mt-3 text-[15px] text-muted">
+              When it arrives it will be Google sign-in or a phone number and a code, whichever you
+              have. No form: an account exists so Nidus can ask you for <em>less</em> next time,
+              not more.
+            </p>
+          </details>
           </div>
 
           {aspiration && (

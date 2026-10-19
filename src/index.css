@@ -373,3 +373,43 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .book-sheet[open], .book-sheet::backdrop, .sheet-spine { animation: none; }
 }
+
+/* The reading scene on the front door. Scatter leaves the page, order arrives
+   at the top. Transform and opacity only, so it stays on the compositor and
+   costs nothing on a mid-range phone. */
+@media (prefers-reduced-motion: no-preference) {
+  .mote {
+    animation: mote 7s var(--ease-drift) infinite;
+    opacity: 0;
+  }
+  @keyframes mote {
+    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.6); }
+    12% { opacity: 0.85; }
+    /* The horizontal pull toward the centre is what makes it read as sorting
+       rather than as rising. Without it the motes just float. */
+    70% { opacity: 0.7; }
+    100% { opacity: 0; transform: translate3d(calc((150px - var(--mote-x, 150px)) * 0.55), -96px, 0) scale(0.85); }
+  }
+  .scene-page {
+    transform-box: fill-box;
+    transform-origin: 0% 100%;
+    animation: page 9s var(--ease-paper) infinite;
+  }
+  @keyframes page {
+    0%, 62% { transform: rotateY(0deg); opacity: 0.9; }
+    78% { transform: rotateY(-62deg); opacity: 0.55; }
+    92%, 100% { transform: rotateY(0deg); opacity: 0.9; }
+  }
+  .scene-order line {
+    stroke-dasharray: 90;
+    stroke-dashoffset: 90;
+    animation: rule 7s var(--ease-paper) infinite;
+  }
+  .scene-order line:nth-child(2) { animation-delay: 420ms; }
+  .scene-order line:nth-child(3) { animation-delay: 840ms; }
+  @keyframes rule {
+    0%, 20% { stroke-dashoffset: 90; }
+    45%, 86% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 90; }
+  }
+}

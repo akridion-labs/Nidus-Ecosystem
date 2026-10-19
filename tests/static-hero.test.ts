@@ -44,6 +44,18 @@ test('the static hero is inside #root so React replaces it cleanly', () => {
   assert.ok(root[1].includes('<h1'), 'the headline must be inside #root')
 })
 
+test('the hero layout matches too, so nothing jumps when the bundle boots', () => {
+  // Matching the words is not enough once the hero has a shape. React draws the
+  // reading scene beside the question; index.html must hold that space, or the
+  // headline moves under the visitor the moment the bundle parses.
+  for (const cls of ['grid items-center gap-8 lg:grid-cols-12', 'lg:col-span-7', 'lg:col-span-5']) {
+    assert.ok(app.includes(cls), `App.tsx lost the hero layout class "${cls}"`)
+    assert.ok(html.includes(cls), `index.html must reserve the same hero layout: "${cls}"`)
+  }
+  assert.match(html, /aspect-ratio:\s*300\/260/,
+    'index.html must reserve the reading scene\'s aspect ratio')
+})
+
 test('night is chosen by the clock, not by guesswork', async () => {
   const { nightByDefault } = await import('../src/App.tsx').catch(() => ({ nightByDefault: null }))
   // App.tsx imports CSS and React, so it cannot be loaded in node:test. The
