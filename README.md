@@ -5,7 +5,7 @@ document pack in `../Nidus_Complete_Document_Pack/`. P07–P09 do not exist.
 
 ```bash
 npm install
-npm test              # client domain: 38 assertions, no database needed
+npm test              # client domain: 82 assertions, no database needed
 npm run dev
 npm run build
 
@@ -16,6 +16,40 @@ npm run server                    # binds 127.0.0.1 by default, on purpose
 TEST_DATABASE_URL=... npm run test:server   # 55 assertions: behaviour, ACID, security
 npm run typecheck:server
 npm run bench                     # ranker latency at 14 / 1k / 10k / 50k works
+```
+
+## If `npm run dev` says "Cannot find native binding"
+
+```
+Error: Cannot find native binding. npm has a bug related to optional
+dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i`
+again after removing both package-lock.json and node_modules directory.
+```
+
+**Do not follow that advice here.** This folder is mounted on two machines — a
+Mac (`darwin-arm64`) and the Linux `arm64` VM that builds it — and they share
+one `node_modules`. Vite 8 (rolldown), Tailwind 4 (oxide), lightningcss and
+oxlint are all native. `npm install` populates only the current platform's
+binding and leaves EMPTY directories for every other one, so reinstalling fixes
+the machine you ran it on and breaks the other, alternately, forever.
+
+Both platforms' bindings can sit side by side — that is what
+`optionalDependencies` are for. Add the missing one instead:
+
+```bash
+node tools/add-platform-bindings.mjs darwin-arm64    # from either machine
+node tools/add-platform-bindings.mjs linux-arm64-gnu
+```
+
+It reads each package's installed version, so a binding can never drift from
+the package it belongs to, and it skips anything already there.
+
+To check which are missing:
+
+```bash
+for d in node_modules/@*/*-{darwin,linux}-* node_modules/*-{darwin,linux}-*; do
+  [ -d "$d" ] && [ -z "$(ls -A "$d")" ] && echo "EMPTY $d"
+done
 ```
 
 The database is PostgreSQL, not the Cloudflare D1 in the original plan. The
