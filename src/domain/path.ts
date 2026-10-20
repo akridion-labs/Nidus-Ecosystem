@@ -73,8 +73,16 @@ export function readingPath(
   })
 
   // What this book opens, once it is finished.
+  //
+  // `seen` is carried through from the walk above, so a book that was already
+  // listed as a prerequisite cannot reappear here as an unlock. Without that,
+  // a cycle in the data produced "read B, then A, then B" - a reader told to
+  // read the same book twice, on either side of the one they asked about. The
+  // walk was already safe from hanging; the OUTPUT was not safe from
+  // repeating, and a repeated step looks like an answer rather than a fault.
   for (const item of catalogue.items) {
     if (!item.profile.prerequisites.includes(workId)) continue
+    if (seen.has(item.work.id)) continue
     if (finished.has(item.work.id)) continue
     const tooEarly = stage !== null && item.profile.tooEarlyStages.includes(stage)
     const otherGaps = item.profile.prerequisites.filter(
