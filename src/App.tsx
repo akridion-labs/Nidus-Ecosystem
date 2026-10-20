@@ -15,7 +15,7 @@ import { ReadingScene } from './brand/ReadingScene.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
-import { readingPath, findRoutes, SPEED_COPY } from './domain/path.ts'
+import { readingPath, findRoutes, SPEED_COPY, retailerLinks } from './domain/path.ts'
 import { ASPIRATIONS, aspirationPlan } from './domain/aspirations.ts'
 import { readSituation, focusTopics } from './domain/reader.ts'
 import type { Aspiration } from './domain/aspirations.ts'
@@ -281,6 +281,10 @@ function BookSheet({ item, brief, onClose }: {
 }) {
   const steps = readingPath(catalogue, item.work.id, brief)
   const routes = findRoutes(item, PUBLIC_DOMAIN_WORKS.includes(item.work.id))
+  const shops = retailerLinks(item)
+  // Which shop's line to show. Hover or focus, one at a time, so six shops cost
+  // one line of vertical space instead of six.
+  const [shopNote, setShopNote] = useState<string | null>(null)
 
   return (
     <div className="lift mt-4 rounded-2xl border border-accent bg-paper p-5 sm:p-7">
@@ -354,12 +358,65 @@ function BookSheet({ item, brief, onClose }: {
             </li>
           ))}
         </ul>
+        {/* The shops, in one row.
+            Named rather than logo'd: a shop's logo is its trademark and not
+            ours to redraw, and an approximation of someone's brand mark reads
+            worse than their name set in our own type.
+            Every link is a SEARCH, never a product page — the request was not
+            to send anyone to Amazon for a book Amazon does not have, and since
+            Nidus cannot know who stocks what, a search is the only link that
+            cannot go stale or lie. If the shop does not have it, the reader
+            sees the SHOP say so. */}
+        <div className="mt-5 border-t border-line pt-4">
+          <p className="label-caps text-muted">Or go straight to a shop</p>
+          <div
+            className="mt-3 flex flex-wrap gap-2"
+            onMouseLeave={() => setShopNote(null)}
+          >
+            {shops.map((shop) => (
+              <a
+                key={shop.name}
+                href={shop.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                onMouseEnter={() => setShopNote(shop.name)}
+                onFocus={() => setShopNote(shop.name)}
+                onBlur={() => setShopNote(null)}
+                className={[
+                  'transition-ui flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[15px]',
+                  shopNote === shop.name
+                    ? 'border-accent bg-accent-soft text-ink'
+                    : 'border-line bg-surface text-muted hover:-translate-y-px hover:border-accent hover:text-ink',
+                ].join(' ')}
+              >
+                <span className="font-medium">{shop.name}</span>
+                {shop.kind === 'used' && <span className="label-caps text-amber">used</span>}
+                <span className="sr-only">— search {shop.name} for this title, opens in a new tab</span>
+              </a>
+            ))}
+          </div>
+          {/* One shared line, reserved so the card does not jump as the reader
+              moves across the row. */}
+          <p className="mt-3 min-h-[2.6rem] max-w-[54ch] text-[14px] leading-snug text-muted">
+            {shopNote === null
+              ? 'Hover or tab through for what each one is good for. Every one of these is a search in that shop, so the shop answers for itself.'
+              : shops.find((x) => x.name === shopNote)?.note}
+          </p>
+        </div>
+
         <p className="mt-4 max-w-[54ch] rounded-lg border border-amber bg-amber-soft p-3 text-[14px]">
           <strong className="font-medium">These are searches and maps, not listings.</strong> Nidus
           has no price feed, no stock feed and no delivery feed. “Today, if they have it” is true of
           every bookshop and promises nothing about any particular one — Nidus cannot tell you what
           this costs, who has it, or when it would arrive. No affiliate links and no commission; the
           order is by typical speed, not by who would pay to be first.
+        </p>
+        <p className="mt-3 max-w-[54ch] text-[14px] text-muted">
+          <strong className="font-medium text-ink">Why no price comparison yet.</strong> It is the
+          obvious next feature and it is blocked on data, not on effort. Amazon only exposes prices
+          to affiliates with recent qualifying sales, no Indian bookseller publishes an API, and
+          scraping their pages breaks their terms and would have Nidus quoting prices it could not
+          stand behind. A number on this card has to be one somebody will honour.
         </p>
       </div>
     </div>

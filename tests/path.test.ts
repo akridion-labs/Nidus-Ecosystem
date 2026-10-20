@@ -154,3 +154,44 @@ test('finishing the prerequisite makes the sequel reachable again', () => {
   assert.deepEqual(quadrant.profile.prerequisites, ['rich-dad'])
   assert.ok(ids.length > 0)
 })
+
+test('every shop link is a search, never a product page', async () => {
+  const { retailerLinks, RETAILERS } = await import('../src/domain/path.ts')
+  // The rule that keeps the promise "do not send me to Amazon for a book
+  // Amazon does not have". Nidus cannot know who stocks what, so a product url
+  // would be a guessed identifier - a 404 with our name on it. A search url
+  // cannot go stale: if the shop lacks the book, the SHOP says so.
+  const links = retailerLinks(item('mom-test'))
+  assert.equal(links.length, RETAILERS.length)
+  for (const l of links) {
+    const u = new URL(l.url)
+    const isSearch = /search|\/s$|\/s\?/.test(u.pathname + u.search) || u.searchParams.has('q') ||
+      u.searchParams.has('k')
+    assert.ok(isSearch, `${l.name} is not a search url: ${l.url}`)
+    assert.ok(u.protocol === 'https:', `${l.name} is not https`)
+    // The title must actually be in the link, or the "search" lands on a
+    // shop's empty search page, which is worse than no link at all.
+    assert.ok(decodeURIComponent(u.toString()).includes('The Mom Test'),
+      `${l.name} does not carry the title`)
+  }
+})
+
+test('no shop link carries an affiliate tag', async () => {
+  const { retailerLinks } = await import('../src/domain/path.ts')
+  // DR-005: no commission, and the card says so. If that is ever reversed it
+  // must be disclosed on the card, and this test must be changed deliberately
+  // rather than drift.
+  const TAGS = ['tag=', 'affid', 'aff_id', 'utm_source', 'ref=', 'cuelinks', 'earnkaro']
+  for (const l of retailerLinks(item('mom-test'))) {
+    for (const t of TAGS) {
+      assert.ok(!l.url.toLowerCase().includes(t), `${l.name} carries "${t}": ${l.url}`)
+    }
+  }
+})
+
+test('used shops are marked as used', async () => {
+  const { RETAILERS } = await import('../src/domain/path.ts')
+  const used = RETAILERS.filter((r) => r.kind === 'used').map((r) => r.name)
+  assert.ok(used.length >= 2, 'the used-book route is the cheapest one and needs more than a token')
+  assert.ok(RETAILERS.some((r) => r.kind === 'new'), 'no new-book shop at all')
+})

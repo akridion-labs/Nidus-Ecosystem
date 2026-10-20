@@ -183,3 +183,82 @@ export function findRoutes(item: CatalogueItem, publicDomain: boolean): Route[] 
   )
   return routes
 }
+
+/* ------------------------------------------------------------------ *
+ * Where to buy it: the shops, named, in one compact row.
+ * ------------------------------------------------------------------ */
+
+export type Retailer = {
+  /** The shop's own name. Used as the visible label and the accessible name. */
+  name: string
+  /** Builds a SEARCH url. Never a product url. See the comment below. */
+  search: (query: string) => string
+  /** One line, shown when the reader hovers or focuses the chip. */
+  note: string
+  kind: 'new' | 'used'
+}
+
+/**
+ * EVERY URL HERE IS A SEARCH, NEVER A PRODUCT PAGE.
+ *
+ * The request was: do not send someone to Amazon if the book is not on Amazon.
+ * That is exactly right, and a search url is how it is kept, because Nidus has
+ * no way to know whether a given shop stocks a given title:
+ *
+ *   - a product url needs an identifier Nidus does not have for any shop, and
+ *     a guessed one is a 404 with our name on it;
+ *   - a search url cannot go stale and cannot lie. If the shop does not have
+ *     the book, the reader sees the SHOP say so, which is the shop's own fact
+ *     rather than our guess about it.
+ *
+ * There are no affiliate tags on any of these, and Nidus takes no commission
+ * (DR-005). If that ever changes it must be disclosed on the card itself.
+ *
+ * Names, not logos: a shop's logo is its trademark and not ours to redraw, and
+ * a hand-drawn approximation of someone's brand mark is worse than their name
+ * set in our own type. The name is also what a reader reads faster.
+ */
+export const RETAILERS: Retailer[] = [
+  {
+    name: 'Amazon',
+    search: (q) => `https://www.amazon.in/s?k=${q}&i=stripbooks`,
+    note: 'Widest range and usually fastest delivery. Nidus cannot see the price or whether it is in stock.',
+    kind: 'new',
+  },
+  {
+    name: 'Flipkart',
+    search: (q) => `https://www.flipkart.com/search?q=${q}`,
+    note: 'Often cheaper than Amazon on Indian editions, and often not. Worth the second tab.',
+    kind: 'new',
+  },
+  {
+    name: 'Crossword',
+    search: (q) => `https://www.crossword.in/search?q=${q}`,
+    note: 'An actual chain of shops. If a branch is near you, the book can be in your hand today rather than Thursday.',
+    kind: 'new',
+  },
+  {
+    name: 'Bookswagon',
+    search: (q) => `https://www.bookswagon.com/search-books/${q}`,
+    note: 'Indian bookseller with deep backlist — carries things the big two quietly do not.',
+    kind: 'new',
+  },
+  {
+    name: 'BookChor',
+    search: (q) => `https://www.bookchor.com/search?q=${q}`,
+    note: 'Second-hand, and the same words on the same pages. Often a third of the price.',
+    kind: 'used',
+  },
+  {
+    name: 'Clankart',
+    search: (q) => `https://www.clankart.com/search?q=${q}`,
+    note: 'Used books sold between people, city by city. Condition varies; the price reflects it.',
+    kind: 'used',
+  },
+]
+
+/** The shops to show for a book, with the query already built in. */
+export function retailerLinks(item: CatalogueItem): (Retailer & { url: string })[] {
+  const q = encodeURIComponent(`${item.work.title} ${item.work.author}`)
+  return RETAILERS.map((r) => ({ ...r, url: r.search(q) }))
+}
