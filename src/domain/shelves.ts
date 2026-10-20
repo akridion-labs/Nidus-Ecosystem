@@ -101,8 +101,11 @@ export const SHELVES: Shelf[] = [
     // Added because tests/shelves.test.ts found a book no amount of browsing
     // could reach. An unreachable book is a catalogue bug, not a taste call.
     name: 'Money, and how people think about it',
-    note: 'One book here is widely argued with. It is shelved as a reading hypothesis, not as advice.',
-    topics: ['money', 'mindset'],
+    // The note used to say "one book here". It is now several, so it says
+    // several. A shelf note that undercounts its own contested titles is the
+    // small dishonesty that makes the big ones easy.
+    note: 'Several books here are widely argued with, and each one says so on its own card. They are shelved as reading hypotheses, never as advice.',
+    topics: ['money', 'mindset', 'manifestation'],
     brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 10 },
   },
   {
@@ -114,6 +117,20 @@ export const SHELVES: Shelf[] = [
     note: 'Not spaceships for their own sake: worlds built to argue about incentives, perspective and how a thing falls apart.',
     topics: ['science-fiction', 'space', 'future', 'speculative'],
     brief: { purpose: 'curiosity', mode: 'enjoy', sessionMinutes: 20 },
+  },
+  {
+    id: 'dharma',
+    name: 'The old stories, and what they argue about',
+    note: 'Not devotional, and not a summary. These are the epics read as arguments about how to act when every option is wrong — which is the question they were written to ask.',
+    topics: ['mythology', 'dharma', 'epic'],
+    brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 20 },
+  },
+  {
+    id: 'long-flight',
+    name: 'For a long flight',
+    note: 'Six uninterrupted hours is a different thing from twenty minutes on a platform. These reward the long stretch — and two of them are about the sky you are sitting in.',
+    topics: ['flight', 'epic', 'history'],
+    brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 45 },
   },
   {
     id: 'the-journey',

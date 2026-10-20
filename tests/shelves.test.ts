@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import { loadCatalogue } from '../src/domain/catalogue.ts'
 import { seedWorks, seedEditions, seedProfiles } from '../src/data/catalogue.seed.ts'
@@ -60,5 +61,24 @@ test('every book in the catalogue reaches at least one shelf', () => {
   for (const item of loaded.items) {
     const found = SHELVES.some((s) => shelfItems(loaded, s).some((i) => i.work.id === item.work.id))
     assert.ok(found, `${item.work.id} is on no shelf at all`)
+  }
+})
+
+test('the empty-shelf message describes the state, not the example that prompted it', () => {
+  // It used to name science fiction and claim "not one title" in the whole
+  // catalogue. True when written; false the day five arrived — a stale lie
+  // sitting behind a condition that no longer fires, which is the worst place
+  // for one because nobody sees it until it is wrong in front of a reader.
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const start = app.indexOf('This shelf is empty')
+  // Comments explaining the rule are allowed to mention the genre; the COPY is
+  // what a reader sees, so strip JSX comments before checking.
+  const block = start === -1
+    ? ''
+    : app.slice(start, app.indexOf('</div>', start)).replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+  assert.ok(block, 'could not find the empty-shelf message')
+  for (const genre of ['science fiction', 'science-fiction', 'not one title']) {
+    assert.ok(!block.toLowerCase().includes(genre),
+      `the empty-shelf message names "${genre}" — it must describe the state, not one shelf`)
   }
 })

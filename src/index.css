@@ -310,8 +310,13 @@ body {
   /* Page-load choreography. Elements arrive in the order they are meant to be
      read — masthead, headline, the sentence under it, then the form — rather
      than all at once, which is the same as no order at all. */
+  /* 620ms, with staggered delays reaching 460ms, meant the last hero element
+     did not settle until 1,080ms after paint — on the one screen whose job is
+     to be easy to get through. UI motion belongs under 300ms; entrances are
+     ease-out, which --ease-paper already is. 320ms + a 230ms stagger settles
+     everything by 550ms, which is half. */
   .rise {
-    animation: rise 620ms var(--ease-paper) both;
+    animation: rise 320ms var(--ease-paper) both;
   }
 
   @keyframes rise {
@@ -324,7 +329,10 @@ body {
      being performed, not decoration over the top of it. */
   .bar-fill {
     transform-origin: left center;
-    animation: fill 780ms var(--ease-paper) both;
+    /* The score bars are the signature moment and can be a little special,
+       but 780ms is long enough that a reader starts reading the number before
+       the bar agrees with it. */
+    animation: fill 420ms var(--ease-paper) both;
   }
 
   @keyframes fill {

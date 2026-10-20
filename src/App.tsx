@@ -73,6 +73,9 @@ const LANGUAGES = [
 
 const SESSIONS = [10, 20, 30, 45]
 
+/** How many shelf cards to show before asking. */
+const SHELF_PAGE = 6
+
 /** Said as a reader would say it, not as the data says it. */
 const SHAPE_COPY: Record<Shape, string> = {
   'relationship-drama': 'Books driven by who wants whom',
@@ -397,7 +400,7 @@ function BookSheet({ item, brief, onClose }: {
                 onFocus={() => setShopNote(shop.name)}
                 onBlur={() => setShopNote(null)}
                 className={[
-                  'transition-ui flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[15px]',
+                  'transition-ui flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[15px] active:scale-[0.97]',
                   shopNote === shop.name
                     ? 'border-accent bg-accent-soft text-ink'
                     : 'border-line bg-surface text-muted hover:-translate-y-px hover:border-accent hover:text-ink',
@@ -440,6 +443,11 @@ function BookSheet({ item, brief, onClose }: {
 function Shelves({ onPick, brief }: { onPick: (shelf: Shelf) => void; brief: Brief }) {
   const [openId, setOpenId] = useState(SHELVES[0].id)
   const [openBook, setOpenBook] = useState<string | null>(null)
+  // Measured, not guessed: the shelves section was 6,784px of a 9,457px page on
+  // a 390px phone — eight of eleven screens, for browsing nobody had asked for
+  // yet. The answer above it costs two clicks and 41 words; this was the part
+  // that made the page feel like work. Six cards, then ask.
+  const [shelfShown, setShelfShown] = useState(SHELF_PAGE)
   const shelf = SHELVES.find((x) => x.id === openId)!
   const books = shelfItems(catalogue, shelf)
 
@@ -466,7 +474,7 @@ function Shelves({ onPick, brief }: { onPick: (shelf: Shelf) => void; brief: Bri
               key={x.id}
               aria-pressed={on}
               type="button"
-              onClick={() => { setOpenId(x.id); setOpenBook(null) }}
+              onClick={() => { setOpenId(x.id); setOpenBook(null); setShelfShown(SHELF_PAGE) }}
               className={[
                 'transition-ui flex min-h-11 items-center gap-2 rounded-t-xl border px-4 text-[15px]',
                 on
@@ -526,18 +534,24 @@ function Shelves({ onPick, brief }: { onPick: (shelf: Shelf) => void; brief: Bri
         {books.length === 0 ? (
           <div className="mt-6 rounded-xl border border-amber bg-amber-soft p-5">
             <p className="font-medium">This shelf is empty, and that is the truth rather than a placeholder.</p>
+            {/* This paragraph used to name science fiction and say there was
+                "not one title" in the catalogue. That was true when it was
+                written and stopped being true the day five arrived — leaving a
+                false claim behind a condition that no longer fires. Copy about
+                a state must describe the state, not the example that prompted
+                it. tests/shelves.test.ts now fails if it names a genre again. */}
             <p className="mt-2 max-w-[58ch] text-[15px] text-muted">
-              There is no science fiction in the Nidus catalogue at all — not one title. Filling this
-              shelf is not a switch to flip: each book needs an editorial profile written by a person
-              who has read it, an edition confirmed against a bibliographic source, and a plain
-              sentence saying what it is. Until that happens, an empty shelf is the honest answer and
-              a “coming soon” badge would not be.
+              Nothing in the catalogue matches it yet. Filling a shelf is not a switch to flip: each
+              book needs an editorial profile written by a person who has read it, an edition
+              confirmed against a bibliographic source, and a plain sentence saying what it is. Until
+              that happens, an empty shelf is the honest answer and a “coming soon” badge would not
+              be.
             </p>
           </div>
         ) : (
           <>
             <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-              {books.map((item) => (
+              {books.slice(0, shelfShown).map((item) => (
                 <li
                   key={item.work.id}
                   className="mount rounded-xl border border-line bg-paper p-4"
@@ -554,6 +568,17 @@ function Shelves({ onPick, brief }: { onPick: (shelf: Shelf) => void; brief: Bri
                 </li>
               ))}
             </ul>
+            {books.length > shelfShown && (
+              <button
+                type="button"
+                onClick={() => setShelfShown((n) => n + SHELF_PAGE)}
+                className="transition-ui mt-4 min-h-12 w-full rounded-xl border border-line bg-paper px-5 text-[16px] text-muted hover:border-accent hover:text-ink"
+              >
+                Show {Math.min(SHELF_PAGE, books.length - shelfShown)} more
+                <span className="text-muted"> · {books.length - shelfShown} left on this shelf</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => onPick(shelf)}
@@ -660,7 +685,7 @@ function Trace({ total, excluded, purpose, mode, minutes, scored, focus }: {
         <li className="rise text-[15px]" style={{ animationDelay: '0ms' }}>
           Read your situation — <span className="text-muted">{purpose} · {mode} · {minutes} min</span>
         </li>
-        <li className="rise text-[15px]" style={{ animationDelay: '260ms' }}>
+        <li className="rise text-[15px]" style={{ animationDelay: '130ms' }}>
           Took {total} books off the shelf.
         </li>
         {shown.map((x, i) => (
@@ -1062,14 +1087,14 @@ export default function App() {
             <div className="lg:col-span-7">
               <h1
                 className="display rise mt-10 max-w-[16ch] text-[clamp(2.5rem,9vw,5rem)]"
-                style={{ animationDelay: '80ms' }}
+                style={{ animationDelay: '40ms' }}
               >
                 What are you building?
               </h1>
 
               <p
                 className="rise mt-5 max-w-[52ch] text-[17px] text-muted"
-                style={{ animationDelay: '180ms' }}
+                style={{ animationDelay: '90ms' }}
               >
                 Nidus gives you one book for where you actually are, shows the arithmetic that chose
                 it, and tells you what the book cannot do.
@@ -1082,12 +1107,12 @@ export default function App() {
                 reason the hero was trimmed in the first place. DOM order is
                 text first, so no order utilities are needed to get this right —
                 they were what broke it. */}
-            <div className="rise mt-8 flex justify-center lg:col-span-5 lg:mt-0" style={{ animationDelay: '240ms' }}>
+            <div className="rise mt-8 flex justify-center lg:col-span-5 lg:mt-0" style={{ animationDelay: '120ms' }}>
               <ReadingScene />
             </div>
           </div>
 
-          <div className="rise mt-8" style={{ animationDelay: '280ms' }}>
+          <div className="rise mt-8" style={{ animationDelay: '140ms' }}>
             <p className="label-caps mb-3 text-muted">Pick the one that is yours</p>
             <div className="flex flex-wrap gap-2">
               {ASPIRATIONS.map((a) => (
@@ -1097,7 +1122,7 @@ export default function App() {
                   aria-pressed={aspirationId === a.id}
                   onClick={() => setAspirationId((id) => (id === a.id ? null : a.id))}
                   className={[
-                    'transition-ui min-h-12 rounded-xl border px-4 text-[16px]',
+                    'transition-ui min-h-12 rounded-xl border px-4 text-[16px] active:scale-[0.97]',
                     aspirationId === a.id
                       ? 'border-accent bg-accent-soft text-ink'
                       : 'border-line bg-surface text-muted hover:-translate-y-px hover:border-accent hover:text-ink',
@@ -1153,7 +1178,7 @@ export default function App() {
           {/* The situations, demoted to the second door. They are still the
               fastest route to a book and they are no longer the first thing a
               stranger meets. */}
-          <details className="rise mt-8 rounded-xl border border-line bg-surface p-4" style={{ animationDelay: '380ms' }}>
+          <details className="rise mt-8 rounded-xl border border-line bg-surface p-4" style={{ animationDelay: '190ms' }}>
             <summary className="label-caps min-h-11 cursor-pointer py-2 text-muted">
               Or skip it — just tell me about tonight
             </summary>
@@ -1189,7 +1214,7 @@ export default function App() {
           </details>
 
           {themeWasAutomatic && theme === 'night' && (
-            <p className="rise mt-6 text-[15px] text-muted" style={{ animationDelay: '460ms' }}>
+            <p className="rise mt-6 text-[15px] text-muted" style={{ animationDelay: '230ms' }}>
               It is late where you are, so Nidus dimmed the page.{' '}
               <button
                 type="button"

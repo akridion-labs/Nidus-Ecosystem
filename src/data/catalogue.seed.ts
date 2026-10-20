@@ -123,7 +123,25 @@ export const seedWorks: unknown[] = [
   { id: 'nine-lives', title: 'Nine Lives', author: 'William Dalrymple', firstPublished: 2009, fiction: false, provenance: DRAFT },
   { id: 'silk-roads', title: 'The Silk Roads', author: 'Peter Frankopan', firstPublished: 2015, fiction: false, provenance: DRAFT },
   { id: 'prisoners-geography', title: 'Prisoners of Geography', author: 'Tim Marshall', firstPublished: 2015, fiction: false, provenance: DRAFT },
-  { id: 'in-patagonia', title: 'In Patagonia', author: 'Bruce Chatwin', firstPublished: 1977, fiction: false, provenance: DRAFT },
+  { id: 'in-patagonia', title: 'In Patagonia', author: 'Bruce Chatwin', firstPublished: 1977, fiction: false, provenance: DRAFT },  // ---- Flight, the old stories, and the contested shelf. 21 October 2026. ---
+  // Three requests in one: something for a long flight, Indian mythology and
+  // dharma, and the manifestation books. The third is the interesting one —
+  // see the profiles, where the provenance note does the work rather than a
+  // refusal. Nidus shelves what a reader asks for and says what it is.
+  { id: 'wind-sand-stars', title: 'Wind, Sand and Stars', author: 'Antoine de Saint-Exupery', firstPublished: 1939, fiction: false, provenance: { ...DRAFT, note: 'Translations differ considerably; the Galantiere and Rees versions are not the same book.' } },
+  { id: 'skyfaring', title: 'Skyfaring', author: 'Mark Vanhoenacker', firstPublished: 2015, fiction: false, provenance: DRAFT },
+  { id: 'difficulty-being-good', title: 'The Difficulty of Being Good', author: 'Gurcharan Das', firstPublished: 2009, fiction: false, provenance: DRAFT },
+  { id: 'jaya', title: 'Jaya', author: 'Devdutt Pattanaik', firstPublished: 2010, fiction: false, provenance: { ...DRAFT, note: 'A retelling with the author\u2019s own readings alongside it, not a translation of the epic.' } },
+  { id: 'my-gita', title: 'My Gita', author: 'Devdutt Pattanaik', firstPublished: 2015, fiction: false, provenance: { ...DRAFT, note: 'One interpretation among many, and it says so in its title. The Gita has been read in very different ways for two thousand years.' } },
+  { id: 'mrityunjaya', title: 'Mrityunjaya', author: 'Shivaji Sawant', firstPublished: 1967, fiction: true, provenance: { ...DRAFT, note: 'Written in Marathi. The English edition is a translation, and which one you get matters.' } },
+  { id: 'ramayana-rajaji', title: 'Ramayana', author: 'C. Rajagopalachari', firstPublished: 1957, fiction: false, provenance: { ...DRAFT, note: 'A condensed retelling, not the Valmiki text. Hundreds of Ramayanas exist and they do not agree.' } },
+  { id: 'mahabharata-rajaji', title: 'Mahabharata', author: 'C. Rajagopalachari', firstPublished: 1951, fiction: false, provenance: { ...DRAFT, note: 'A condensed retelling. The full epic is roughly ten times this length.' } },
+  { id: 'the-secret', title: 'The Secret', author: 'Rhonda Byrne', firstPublished: 2006, fiction: false, provenance: DRAFT },
+  { id: 'subconscious-mind', title: 'The Power of Your Subconscious Mind', author: 'Joseph Murphy', firstPublished: 1963, fiction: false, provenance: DRAFT },
+  { id: 'thinking-big', title: 'The Magic of Thinking Big', author: 'David J. Schwartz', firstPublished: 1959, fiction: false, provenance: DRAFT },
+  { id: 'sapiens', title: 'Sapiens', author: 'Yuval Noah Harari', firstPublished: 2011, fiction: false, provenance: { ...DRAFT, note: 'Historians argue with a good deal of it. Read it as one confident account, not as the settled record.' } },
+  { id: 'beginning-infinity', title: 'The Beginning of Infinity', author: 'David Deutsch', firstPublished: 2011, fiction: false, provenance: DRAFT },
+  { id: 'range', title: 'Range', author: 'David Epstein', firstPublished: 2019, fiction: false, provenance: DRAFT },
 ]
 
 const ed = (
@@ -239,6 +257,21 @@ export const seedEditions: unknown[] = [
   ed('silk-roads-en', 'silk-roads', 'en'),
   ed('prisoners-geography-en', 'prisoners-geography', 'en'),
   ed('in-patagonia-en', 'in-patagonia', 'en'),
+  ed('wind-sand-stars-en', 'wind-sand-stars', 'en'),
+  ed('skyfaring-en', 'skyfaring', 'en'),
+  ed('difficulty-being-good-en', 'difficulty-being-good', 'en'),
+  ed('jaya-en', 'jaya', 'en'),
+  ed('my-gita-en', 'my-gita', 'en'),
+  ed('mrityunjaya-en', 'mrityunjaya', 'en'),
+  ed('ramayana-rajaji-en', 'ramayana-rajaji', 'en'),
+  ed('mahabharata-rajaji-en', 'mahabharata-rajaji', 'en'),
+  ed('the-secret-en', 'the-secret', 'en'),
+  ed('subconscious-mind-en', 'subconscious-mind', 'en'),
+  ed('thinking-big-en', 'thinking-big', 'en'),
+  ed('sapiens-en', 'sapiens', 'en'),
+  ed('sapiens-hi', 'sapiens', 'hi'),
+  ed('beginning-infinity-en', 'beginning-infinity', 'en'),
+  ed('range-en', 'range', 'en'),
 ]
 
 export const seedProfiles: unknown[] = [
@@ -932,6 +965,155 @@ export const seedProfiles: unknown[] = [
     targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
     suggestedArtifact: null, shapes: [],
     provenance: { ...EDITORIAL, note: 'Fragments of a page or two. How much is reportage and how much invention is disputed.' },
+  },
+  // ---- Flight, the old stories, and the contested shelf. 21 October 2026. ---
+  //
+  // The manifestation books are the interesting entries here, so the reasoning
+  // is written down rather than left to be guessed at.
+  //
+  // Nidus does not refuse books a reader asks for. It also does not pretend a
+  // contested claim is settled. The mechanism for both already exists and is
+  // used here: the provenance note is rendered to the reader inside "What this
+  // cannot do", so the book is shelved, findable, and honestly labelled in the
+  // same breath. That is the same treatment Rich Dad Poor Dad has had since the
+  // first fourteen books.
+  //
+  // The line held: the note says what is and is not evidenced, and never tells
+  // the reader what to conclude.
+  {
+    workId: 'wind-sand-stars',
+    inOneLine: 'A 1930s mail pilot on deserts, storms, and what the job showed him about people.',
+    modes: ['enjoy', 'explore'], topics: ['flight', 'journey', 'solitude', 'meaning'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 3,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Written by a working pilot before flying was routine. The chapter on being lost in the desert is the one people remember.' },
+  },
+  {
+    workId: 'skyfaring',
+    inOneLine: 'A 747 pilot explains what is actually happening while you sit in seat 32A.',
+    modes: ['enjoy', 'explore'], topics: ['flight', 'journey', 'curiosity', 'craft'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 25, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Best read on a plane, which is a rare thing to be able to say about a book.' },
+  },
+  {
+    workId: 'difficulty-being-good',
+    inOneLine: 'What the Mahabharata actually says about doing the right thing when every option is wrong.',
+    modes: ['explore'], topics: ['dharma', 'mythology', 'judgement', 'moral-choice', 'india'],
+    conceptualDifficulty: 4, typicalSessionMinutes: 30, actionability: 1, emotionalIntensity: 3,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Written by someone who ran a large company before writing it, which shows in the questions he asks of the epic. Demanding, and the most directly useful book on this shelf for anyone making decisions with no clean answer.' },
+  },
+  {
+    workId: 'jaya',
+    inOneLine: 'The whole Mahabharata, retold in short chapters with what each one is arguing about.',
+    modes: ['explore', 'enjoy'], topics: ['mythology', 'dharma', 'epic', 'india'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 15, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Short chapters, so it stops cleanly anywhere. The best first door into the epic if you have not read one.' },
+  },
+  {
+    workId: 'my-gita',
+    inOneLine: 'The Gita rearranged by theme rather than by chapter, with one reader saying so.',
+    modes: ['explore'], topics: ['dharma', 'mythology', 'meaning', 'india'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'mrityunjaya',
+    inOneLine: 'The Mahabharata told by Karna, who was on the losing side and knew why.',
+    modes: ['enjoy', 'explore'], topics: ['mythology', 'epic', 'india', 'endurance'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 30, actionability: 0, emotionalIntensity: 4,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'A Marathi classic. Heavy going emotionally, and long.' },
+  },
+  {
+    workId: 'ramayana-rajaji',
+    inOneLine: 'The Ramayana in plain prose, short enough to finish, by a man who led a country.',
+    modes: ['enjoy', 'explore'], topics: ['mythology', 'epic', 'india', 'dharma'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'mahabharata-rajaji',
+    inOneLine: 'The Mahabharata in plain prose, condensed to something a person can actually finish.',
+    modes: ['enjoy', 'explore'], topics: ['mythology', 'epic', 'india', 'dharma'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 3,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'the-secret',
+    inOneLine: 'The argument that thinking about something hard enough causes it to arrive.',
+    modes: ['explore'], topics: ['manifestation', 'mindset'],
+    conceptualDifficulty: 1, typicalSessionMinutes: 15, actionability: 2, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: {
+      ...EDITORIAL,
+      // Shown to the reader inside "What this cannot do". Says what is and is
+      // not evidenced; does not tell them what to conclude.
+      note: 'Its central claim — that thought attracts matching events — has no scientific support, and the book presents no evidence for it. Many readers still find the attention it puts on what they want to be worth something. Read as motivation, not as mechanism, and never as a reason to skip treatment, insurance or saving.',
+    },
+  },
+  {
+    workId: 'subconscious-mind',
+    inOneLine: 'A 1963 argument that repeated suggestion reshapes what you do without noticing.',
+    modes: ['explore'], topics: ['manifestation', 'mindset', 'habits'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 3, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: {
+      ...EDITORIAL,
+      note: 'Its model of the mind predates most of what is now known about it, and its healing claims are not supported. The practical half — rehearsing what you intend to do until it feels ordinary — survives the rest and is closer to what sports psychology actually found.',
+    },
+  },
+  {
+    workId: 'thinking-big',
+    inOneLine: 'A 1959 case that most people aim low for reasons that do not survive inspection.',
+    modes: ['explore', 'apply'], topics: ['mindset', 'discipline', 'persuasion'],
+    conceptualDifficulty: 1, typicalSessionMinutes: 20, actionability: 3, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Plain-spoken and dated in places. Argument rather than evidence, and it does not claim otherwise.' },
+  },
+  {
+    workId: 'sapiens',
+    inOneLine: 'One sweeping account of how our species went from one ape among several to this.',
+    modes: ['explore'], topics: ['history', 'systems', 'judgement', 'curiosity'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 30, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'beginning-infinity',
+    inOneLine: 'An argument that good explanations are the thing that makes progress possible at all.',
+    modes: ['explore'], topics: ['judgement', 'systems', 'curiosity', 'bias'],
+    conceptualDifficulty: 5, typicalSessionMinutes: 30, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'The hardest book in this catalogue. Worth it, and not a book to start on a Tuesday night at 11pm.' },
+  },
+  {
+    workId: 'range',
+    inOneLine: 'Why people who went wide often beat the ones who specialised early.',
+    modes: ['explore', 'apply'], topics: ['judgement', 'craft', 'curiosity', 'bias'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 25, actionability: 2, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: 'One thing you are curious about that has nothing to do with your work, given an hour this week',
+    shapes: [],
+    provenance: { ...EDITORIAL, note: 'Selects its examples to make its case, as books like this do. The underlying research on transfer and early specialisation is real.' },
   },
 ]
 

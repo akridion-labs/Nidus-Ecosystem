@@ -70,3 +70,45 @@ test('the travel shelf is reachable and is really travel', () => {
     assert.ok(ids.includes(id), `${id} should be on the journey shelf`)
   }
 })
+
+test('a contested book carries its warning all the way to the reader', async () => {
+  const { rank } = await import('../src/domain/ranker.ts')
+  // Nidus shelves books a reader asks for and does not pretend a contested
+  // claim is settled. The mechanism for both is the provenance note, which
+  // cannotDoFor() renders inside "What this cannot do". If that wiring ever
+  // breaks, the books stay on the shelves and quietly lose their label - which
+  // is the exact failure this product cannot have.
+  const contested = catalogue.items.filter((i) =>
+    ['the-secret', 'subconscious-mind', 'rich-dad'].includes(i.work.id))
+  assert.ok(contested.length >= 3, 'the contested books went missing from the catalogue')
+
+  for (const item of contested) {
+    const note = item.profile.provenance.note ?? item.work.provenance.note
+    assert.ok(note, `${item.work.id} is contested and carries no note at all`)
+    const b = ReadingBrief.parse({
+      purpose: 'curiosity', mode: 'explore', language: 'en', sessionMinutes: 20,
+      confirmedTopics: item.profile.topics.slice(0, 2),
+    })
+    const decision = rank(catalogue, b).decisions.find((d) => d.workId === item.work.id)
+    if (!decision) continue // not offered for this brief; the gate is allowed to win
+    assert.ok(
+      decision.cannotDo.some((c) => c === note),
+      `${item.work.id} was recommended without its note reaching the card`,
+    )
+  }
+})
+
+test('nothing in the catalogue tells a reader to skip treatment or saving', () => {
+  // A specific, narrow check on the one category where a book's claim could do
+  // real harm if Nidus repeated it approvingly. Nidus may shelve the book; its
+  // own words must never endorse the claim.
+  const ours = catalogue.items.flatMap((i) => [
+    i.profile.inOneLine,
+    i.profile.provenance.note ?? '',
+    i.work.provenance.note ?? '',
+  ]).join(' ').toLowerCase()
+  for (const claim of ['will cure', 'cures ', 'guaranteed to', 'instead of medicine',
+    'no need for a doctor', 'replaces treatment']) {
+    assert.ok(!ours.includes(claim), `catalogue copy contains "${claim}"`)
+  }
+})
