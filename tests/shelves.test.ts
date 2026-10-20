@@ -29,13 +29,29 @@ test('every shelf that claims to have books has books', () => {
   }
 })
 
-test('the science-fiction shelf is genuinely empty, not decoratively empty', () => {
+test('the science-fiction shelf says what is really on it', () => {
+  // This test used to assert the shelf was EMPTY, and that was the right
+  // assertion for as long as it was true: the shelf showed a deliberate zero
+  // for weeks rather than being padded with the nearest adjacent book. Books
+  // arrived on 20 October 2026, so the assertion that outlives both states is
+  // the one the reader depends on — the count on screen is the real count, and
+  // anything on this shelf is really tagged science fiction.
   const shelf = SHELVES.find((s) => s.id === 'sci-fi')!
-  assert.equal(shelfItems(loaded, shelf).length, 0)
-  // And the claim the UI makes about it — no science fiction anywhere in the
-  // catalogue — is true of every book, not just of this shelf's topic list.
-  for (const item of loaded.items) {
-    assert.equal(item.work.fiction && item.profile.topics.includes('science-fiction'), false)
+  const on = shelfItems(loaded, shelf)
+  for (const item of on) {
+    assert.ok(
+      item.profile.topics.some((t) => shelf.topics.includes(t)),
+      `${item.work.id} is on the science-fiction shelf without a matching topic`,
+    )
+  }
+  // The shelf note stopped saying "genuinely not here yet" when that stopped
+  // being true. If the shelf ever empties again, the note must go back.
+  if (on.length === 0) {
+    assert.match(shelf.note, /not here yet/,
+      'an empty shelf must say so; the note promises content that does not exist')
+  } else {
+    assert.doesNotMatch(shelf.note, /not here yet/,
+      'the shelf has books and the note still claims it is empty')
   }
 })
 

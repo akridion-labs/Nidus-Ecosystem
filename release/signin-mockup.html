@@ -1,0 +1,116 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nidus sign-in — design preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f5f1ea; --surface:#fdfbf7; --ink:#1d2b3a; --muted:#4f6076; --line:#e2dbcf;
+  --accent:#14625a; --accent-soft:#dcece7; --amber:#8a5a10; --amber-soft:#f7efe2;
+  --display:"Instrument Serif",Georgia,serif;
+}
+:root[data-theme=night]{--paper:#14181d;--surface:#1b2027;--ink:#ece6da;--muted:#9aa7b5;--line:#2c333d;--accent:#5fb3a6;--accent-soft:#1d3a36;--amber:#d8a85e;--amber-soft:#33291b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:17px/1.5 "Space Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.display{font-family:var(--display);font-weight:400;line-height:.98;letter-spacing:-.025em}
+.caps{text-transform:uppercase;letter-spacing:.14em;font-size:.6875rem;font-weight:600}
+.wrap{max-width:72rem;margin:0 auto;padding:40px 24px 64px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:44px;flex-wrap:wrap}
+.mark{display:inline-flex;align-items:center;gap:8px;color:var(--accent)}
+.mark b{font-family:var(--display);font-size:1.375rem;letter-spacing:.16em;line-height:1;font-weight:400}
+.flag{display:inline-block;background:var(--amber-soft);color:var(--amber);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.grid{display:grid;gap:44px}
+@media(min-width:980px){.grid{grid-template-columns:1fr 24rem 24rem;gap:40px;align-items:start}}
+h1{font-size:clamp(2.1rem,4.4vw,3rem);max-width:13ch}
+.lede{color:var(--muted);margin-top:18px;max-width:40ch;font-size:16px}
+.scene{width:100%;max-width:15rem;margin-top:32px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:26px}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;border-radius:12px;font:inherit;font-size:16px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.or{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:14px}
+.or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
+label{display:block;font-size:15px;font-weight:500;margin-bottom:8px}
+.phone{display:flex;gap:8px}
+.cc{min-width:76px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--muted);font-size:16px}
+.inp{flex:1;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:0 14px;display:flex;align-items:center;color:var(--muted);font-size:16px}
+.fine{color:var(--muted);font-size:14px;margin-top:14px;line-height:1.5}
+.skip{display:block;text-align:center;margin-top:18px;color:var(--muted);font-size:15px;text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--line)}
+.otp{display:flex;gap:8px;margin-top:8px}
+.otp i{flex:1;aspect-ratio:3/4;max-width:46px;border:1px solid var(--line);border-radius:10px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:25px;font-style:normal}
+.otp i.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.note{border:1px dashed var(--line);border-radius:12px;padding:14px 16px;margin-top:20px;color:var(--muted);font-size:14px;line-height:1.55}
+.note b{color:var(--ink);font-weight:600;font-family:inherit;font-size:14px;letter-spacing:0}
+.stateLabel{color:var(--muted);margin-bottom:12px}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="mark">
+      <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 18a12 8 0 0 0 24 0" stroke-width="2.2"/><path d="M7.5 16.2a8.5 6 0 0 0 17 0" stroke-width="1.8" opacity=".7"/><path d="M11 14.6a5 4 0 0 0 10 0" stroke-width="1.5" opacity=".45"/></g><circle cx="16" cy="10.5" r="3" fill="currentColor"/></svg>
+      <b>NIDUS</b>
+    </span>
+    <span class="flag">Design preview — not built, nothing here signs anyone in</span>
+  </div>
+
+  <div class="grid">
+    <div>
+      <h1 class="display">Keep what you have read.</h1>
+      <p class="lede">Nidus works without an account and always will. An account exists for one reason: so it stops offering you books you have already finished &mdash; and so it can ask you for <em>less</em> next time, not more.</p>
+      <svg viewBox="0 0 300 260" class="scene" aria-hidden>
+        <g stroke="var(--accent)" stroke-linecap="round">
+          <line x1="112" y1="34" x2="188" y2="34" stroke-width="3"/>
+          <line x1="124" y1="48" x2="176" y2="48" stroke-width="2.5" opacity=".72"/>
+          <line x1="136" y1="61" x2="164" y2="61" stroke-width="2" opacity=".5"/>
+        </g>
+        <g fill="var(--accent)" opacity=".8">
+          <circle cx="138" cy="96" r="2.6"/><circle cx="161" cy="88" r="2"/><circle cx="150" cy="112" r="3"/>
+          <circle cx="176" cy="104" r="2.2"/><circle cx="124" cy="110" r="2.6"/><circle cx="188" cy="120" r="1.8"/>
+        </g>
+        <g stroke="var(--ink)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="150" cy="176" r="15" stroke-width="2.5"/>
+          <path d="M112 236a38 30 0 0 1 76 0" stroke-width="2.5"/>
+          <path d="M150 214 L96 206 a6 6 0 0 1 -4-6 L92 178 l58 10 Z" stroke-width="2.2" fill="var(--surface)"/>
+          <path d="M150 214 L204 206 a6 6 0 0 0 4-6 L208 178 l-58 10 Z" stroke-width="2.2" fill="var(--surface)"/>
+          <line x1="150" y1="188" x2="150" y2="214" stroke-width="2.2"/>
+        </g>
+      </svg>
+    </div>
+
+    <div>
+      <p class="caps stateLabel">Step 1 &mdash; pick a door</p>
+      <div class="card">
+        <div class="btn">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.3-4.6 7l7.6 5.9c4.4-4.1 6.7-10.1 6.7-17.4z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C.9 16.3 0 20 0 24s.9 7.7 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.4-5.6l-7.6-5.9c-2.1 1.4-4.8 2.3-7.8 2.3-6.4 0-11.7-3.7-13.6-9.1l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          Continue with Google
+        </div>
+        <div class="or">or</div>
+        <label>Phone number</label>
+        <div class="phone">
+          <div class="cc">+91</div>
+          <div class="inp">98765 43210</div>
+        </div>
+        <div style="height:14px"></div>
+        <div class="btn primary">Send me a code</div>
+        <p class="fine">A code by SMS. Nidus stores the number only after the code checks out, and deletes it whenever you ask.</p>
+        <span class="skip">Keep reading without an account</span>
+      </div>
+    </div>
+
+    <div>
+      <p class="caps stateLabel">Step 2 &mdash; the code</p>
+      <div class="card">
+        <label>Code sent to +91 98765 43210</label>
+        <div class="otp"><i>4</i><i>0</i><i>7</i><i class="on">2</i><i></i><i></i></div>
+        <div style="height:18px"></div>
+        <div class="btn primary">Verify and keep my shelf</div>
+        <p class="fine">Did not arrive? Resend in 0:24. Wrong number? <span style="text-decoration:underline;text-underline-offset:3px">Change it</span>.</p>
+        <div class="note">
+          <b>What Nidus keeps:</b> the books you marked finished or reading, and whichever of Google or your number you signed in with.<br><br>
+          <b>What it never keeps:</b> your contacts, your location, anything you did not type in &mdash; and nothing at all if you use it without an account.
+        </div>
+        <span class="skip">Keep reading without an account</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

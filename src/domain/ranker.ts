@@ -21,7 +21,7 @@ export const RANKER_VERSION = 'nidus-ranker-0.5.0-pilot'
 
 export type Ineligible = { item: CatalogueItem; reason: string; kind: EligibilityFailure }
 export type EligibilityFailure =
-  | 'audience' | 'language' | 'format' | 'budget' | 'author'
+  | 'audience' | 'language' | 'format' | 'budget' | 'author' | 'shape'
   | 'mode' | 'completed' | 'reading' | 'rejected' | 'deferred'
 
 export function isEligible(
@@ -49,6 +49,15 @@ export function isEligible(
   // would have to be bought, and the reader said they cannot buy.
   if (brief.budget === 'free-only' && accessRoute(item, brief) === 'to-obtain') {
     return { ok: false, kind: 'budget', reason: 'you would have to buy a copy of this one' }
+  }
+  // Shape, before anything about fit: a book the reader has ruled out is not a
+  // close call, and scoring it would be work done to throw away.
+  const ruledOut = item.profile.shapes.filter((sh) => brief.avoid.includes(sh))
+  if (ruledOut.length > 0) {
+    return {
+      ok: false, kind: 'shape',
+      reason: `you ruled out ${ruledOut.map((sh) => sh.replace(/-/g, ' ')).join(' and ')}`,
+    }
   }
   const intent = brief.intents.find((i) => i.workId === item.work.id)
   if (intent?.status === 'COMPLETED' && !brief.revisitCompleted) {

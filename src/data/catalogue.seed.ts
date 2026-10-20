@@ -103,6 +103,27 @@ export const seedWorks: unknown[] = [
   { id: 'meditations', title: 'Meditations', author: 'Marcus Aurelius', firstPublished: null, fiction: false, provenance: { ...DRAFT, note: 'Written around AD 180, so no modern publication year applies. Out of copyright; the translation matters.' } },
   { id: 'think-grow-rich', title: 'Think and Grow Rich', author: 'Napoleon Hill', firstPublished: 1937, fiction: false, provenance: DRAFT },
   { id: 'fountainhead', title: 'The Fountainhead', author: 'Ayn Rand', firstPublished: 1943, fiction: true, provenance: DRAFT },
+  // ---- Fiction and travel, added 20 October 2026. --------------------------
+  // The brief: reading that widens the head without pulling the week off
+  // course, for trains and airports. Two shapes are ruled out by request and
+  // are tagged as such in the profiles rather than quietly omitted —
+  // 'relationship-drama' and 'suspense'. The books are still in the catalogue;
+  // the reader's own filter decides. A catalogue that silently lacks a genre is
+  // indistinguishable from a catalogue that is wrong.
+  { id: 'invisible-cities', title: 'Invisible Cities', author: 'Italo Calvino', firstPublished: 1972, fiction: true, provenance: DRAFT },
+  { id: 'dispossessed', title: 'The Dispossessed', author: 'Ursula K. Le Guin', firstPublished: 1974, fiction: true, provenance: DRAFT },
+  { id: 'foundation', title: 'Foundation', author: 'Isaac Asimov', firstPublished: 1951, fiction: true, provenance: DRAFT },
+  { id: 'stories-of-your-life', title: 'Stories of Your Life and Others', author: 'Ted Chiang', firstPublished: 2002, fiction: true, provenance: DRAFT },
+  { id: 'flatland', title: 'Flatland', author: 'Edwin A. Abbott', firstPublished: 1884, fiction: true, provenance: { ...DRAFT, note: 'Out of copyright. The 1884 text is the text; no translation question.' } },
+  { id: 'labyrinths', title: 'Labyrinths', author: 'Jorge Luis Borges', firstPublished: 1962, fiction: true, provenance: { ...DRAFT, note: 'A selection; contents differ between editions, so the edition matters here more than usual.' } },
+  { id: 'the-martian', title: 'The Martian', author: 'Andy Weir', firstPublished: 2011, fiction: true, provenance: DRAFT },
+  { id: 'railway-bazaar', title: 'The Great Railway Bazaar', author: 'Paul Theroux', firstPublished: 1975, fiction: false, provenance: DRAFT },
+  { id: 'travels-herodotus', title: 'Travels with Herodotus', author: 'Ryszard Kapuscinski', firstPublished: 2004, fiction: false, provenance: DRAFT },
+  { id: 'city-of-djinns', title: 'City of Djinns', author: 'William Dalrymple', firstPublished: 1993, fiction: false, provenance: DRAFT },
+  { id: 'nine-lives', title: 'Nine Lives', author: 'William Dalrymple', firstPublished: 2009, fiction: false, provenance: DRAFT },
+  { id: 'silk-roads', title: 'The Silk Roads', author: 'Peter Frankopan', firstPublished: 2015, fiction: false, provenance: DRAFT },
+  { id: 'prisoners-geography', title: 'Prisoners of Geography', author: 'Tim Marshall', firstPublished: 2015, fiction: false, provenance: DRAFT },
+  { id: 'in-patagonia', title: 'In Patagonia', author: 'Bruce Chatwin', firstPublished: 1977, fiction: false, provenance: DRAFT },
 ]
 
 const ed = (
@@ -204,6 +225,20 @@ export const seedEditions: unknown[] = [
   ed('think-grow-rich-hi', 'think-grow-rich', 'hi'),
   ed('think-grow-rich-te', 'think-grow-rich', 'te'),
   ed('fountainhead-en', 'fountainhead', 'en'),
+  ed('invisible-cities-en', 'invisible-cities', 'en'),
+  ed('dispossessed-en', 'dispossessed', 'en'),
+  ed('foundation-en', 'foundation', 'en'),
+  ed('stories-of-your-life-en', 'stories-of-your-life', 'en'),
+  ed('flatland-en', 'flatland', 'en'),
+  ed('labyrinths-en', 'labyrinths', 'en'),
+  ed('the-martian-en', 'the-martian', 'en'),
+  ed('railway-bazaar-en', 'railway-bazaar', 'en'),
+  ed('travels-herodotus-en', 'travels-herodotus', 'en'),
+  ed('city-of-djinns-en', 'city-of-djinns', 'en'),
+  ed('nine-lives-en', 'nine-lives', 'en'),
+  ed('silk-roads-en', 'silk-roads', 'en'),
+  ed('prisoners-geography-en', 'prisoners-geography', 'en'),
+  ed('in-patagonia-en', 'in-patagonia', 'en'),
 ]
 
 export const seedProfiles: unknown[] = [
@@ -763,6 +798,141 @@ export const seedProfiles: unknown[] = [
     targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [], suggestedArtifact: null,
     provenance: { ...EDITORIAL, note: 'A novel written to argue a philosophy. Many readers reject that philosophy; the book is not neutral.' },
   },
+  // ---- Fiction and travel profiles, 20 October 2026. ------------------------
+  // Topics are chosen so these are reachable by browsing AND so the ranker can
+  // justify them on a purpose rather than only on genre. 'travel' and 'journey'
+  // put them on the Somewhere-else shelf; 'science-fiction' finally fills a
+  // shelf that has shown a deliberate zero since the day it was created.
+  {
+    workId: 'invisible-cities',
+    inOneLine: 'Fifty-five imagined cities described to an emperor, each one really about how we see.',
+    modes: ['enjoy', 'explore'], topics: ['travel', 'journey', 'judgement', 'curiosity'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 10, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Reads in two-page pieces, which is why it is the one to carry on a train.' },
+  },
+  {
+    workId: 'dispossessed',
+    inOneLine: 'Two neighbouring worlds run on opposite economics, seen by a physicist who has lived in both.',
+    modes: ['explore', 'enjoy'], topics: ['systems', 'strategy', 'judgement', 'science-fiction'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 30, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'The closest thing there is to a novel about incentive design.' },
+  },
+  {
+    workId: 'foundation',
+    inOneLine: 'An empire falls slowly, and a few people try to shorten the dark age that follows.',
+    modes: ['enjoy', 'explore'], topics: ['systems', 'strategy', 'science-fiction', 'future'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 25, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'stories-of-your-life',
+    inOneLine: 'Short stories that each take one idea seriously enough to follow it all the way down.',
+    modes: ['enjoy', 'explore'], topics: ['science-fiction', 'judgement', 'curiosity', 'short-stories'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'One story per sitting. Nothing to finish, so nothing to feel behind on.' },
+  },
+  {
+    workId: 'flatland',
+    inOneLine: 'A square living in two dimensions meets a third, and cannot make anyone believe him.',
+    modes: ['explore', 'enjoy'], topics: ['science-fiction', 'judgement', 'bias', 'curiosity'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 15, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Free and legally so. Its Victorian social satire has aged badly; the geometry has not.' },
+  },
+  {
+    workId: 'labyrinths',
+    inOneLine: 'Short stories built like puzzles, about infinity, libraries and forking time.',
+    modes: ['explore'], topics: ['curiosity', 'judgement', 'short-stories'],
+    conceptualDifficulty: 4, typicalSessionMinutes: 15, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Demanding per page and very short per story. Expect to reread.' },
+  },
+  {
+    workId: 'the-martian',
+    inOneLine: 'An engineer stranded on Mars solves one problem at a time with whatever is in the room.',
+    modes: ['enjoy'], topics: ['science-fiction', 'craft', 'endurance', 'systems'],
+    conceptualDifficulty: 1, typicalSessionMinutes: 25, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null,
+    // Tagged honestly, and it costs us the book. Its engine is problem-solving,
+    // but what turns the pages is whether he dies — so a reader who ruled out
+    // suspense ruled this out. Losing it to their own filter beats pretending.
+    shapes: ['suspense'],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'railway-bazaar',
+    inOneLine: 'Four months of trains from London to Japan and back, written from the compartment.',
+    modes: ['enjoy', 'explore'], topics: ['travel', 'journey', 'everyday-life', 'curiosity'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'A train book to read on a train. Its view of the places it passes is of its time, 1975.' },
+  },
+  {
+    workId: 'travels-herodotus',
+    inOneLine: 'A reporter carries one ancient history book around the world and learns how to look.',
+    modes: ['explore', 'enjoy'], topics: ['travel', 'history', 'judgement', 'curiosity'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 25, actionability: 0, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'city-of-djinns',
+    inOneLine: 'A year in Delhi, digging down through its layers one century at a time.',
+    modes: ['enjoy', 'explore'], topics: ['travel', 'india', 'history', 'everyday-life'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 25, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: EDITORIAL,
+  },
+  {
+    workId: 'nine-lives',
+    inOneLine: 'Nine people across India whose religious lives are nothing like the headlines.',
+    modes: ['explore', 'enjoy'], topics: ['india', 'travel', 'meaning', 'everyday-life'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 0, emotionalIntensity: 3,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Nine separate lives, so it stops cleanly nine times.' },
+  },
+  {
+    workId: 'silk-roads',
+    inOneLine: 'World history retold from the trade routes rather than from Europe.',
+    modes: ['explore'], topics: ['history', 'strategy', 'systems', 'money'],
+    conceptualDifficulty: 3, typicalSessionMinutes: 30, actionability: 1, emotionalIntensity: 2,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Long. The payoff for a founder is watching distribution decide history.' },
+  },
+  {
+    workId: 'prisoners-geography',
+    inOneLine: 'Why mountains, rivers and ports still decide what countries are able to do.',
+    modes: ['explore'], topics: ['strategy', 'systems', 'history', 'judgement'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 20, actionability: 1, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Argues one lens hard. Read it as a lens, not as the whole answer.' },
+  },
+  {
+    workId: 'in-patagonia',
+    inOneLine: 'Ninety-seven short fragments of a journey to the bottom of South America.',
+    modes: ['enjoy'], topics: ['travel', 'journey', 'solitude', 'curiosity'],
+    conceptualDifficulty: 2, typicalSessionMinutes: 10, actionability: 0, emotionalIntensity: 1,
+    targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [],
+    suggestedArtifact: null, shapes: [],
+    provenance: { ...EDITORIAL, note: 'Fragments of a page or two. How much is reportage and how much invention is disputed.' },
+  },
 ]
 
 /**
@@ -771,7 +941,7 @@ export const seedProfiles: unknown[] = [
  * never a claim that a shop nearby has a copy.
  */
 export const PUBLIC_DOMAIN_WORKS = [
-  'five-rings', 'bhagavad-gita', 'meditations', 'counsels-maxims',
+  'five-rings', 'bhagavad-gita', 'meditations', 'counsels-maxims', 'flatland',
 ]
 // NOT on that list, and worth saying why: How to Win Friends (1936) and Think
 // and Grow Rich (1937) are old, which is not the same as out of copyright —

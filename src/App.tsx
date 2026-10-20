@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ReadingBrief, MODES, PURPOSES, FOUNDER_STAGES, REJECTION_REASONS,
-  FORMAT_PREFS, BUDGETS,
+  FORMAT_PREFS, BUDGETS, SHAPES,
 } from './domain/contracts.ts'
 import type {
   AccessRoute, Budget, FormatPreference, FounderStage, Mode, Purpose,
-  RecommendationDecision, RejectionReason, ResultRole, ReadingBrief as Brief,
+  RecommendationDecision, RejectionReason, ResultRole, Shape, ReadingBrief as Brief,
 } from './domain/contracts.ts'
 import { catalogue } from './data/catalogue.ts'
 import type { CatalogueItem } from './domain/catalogue.ts'
@@ -71,6 +71,13 @@ const LANGUAGES = [
 ]
 
 const SESSIONS = [10, 20, 30, 45]
+
+/** Said as a reader would say it, not as the data says it. */
+const SHAPE_COPY: Record<Shape, string> = {
+  'relationship-drama': 'Books driven by who wants whom',
+  suspense: 'Suspense and thrillers',
+  horror: 'Horror',
+}
 
 const REJECTION_COPY: Record<RejectionReason, string> = {
   'already-read': 'Already read it',
@@ -787,6 +794,11 @@ export default function App() {
   // gap in it.
   const [struckOut, setStruckOut] = useState<string[]>([])
 
+  // Shapes the reader has ruled out. Empty by default, because a filter that
+  // removes books nobody asked it to remove is the opposite of showing your
+  // working — and when it IS set, the trace names what it took out.
+  const [avoid, setAvoid] = useState<Shape[]>([])
+
   const [rejections, setRejections] = useState<{ workId: string; reason: RejectionReason }[]>([])
   // Two different claims, kept apart because they are different. "I will read
   // this" is a decision; "I read this" is an event. Only the second can unlock
@@ -892,9 +904,10 @@ export default function App() {
         ],
         rejections,
         confirmedTopics: focusTopics(readTopics, confirmedTopics),
+        avoid,
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics, readTopics],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics, readTopics, avoid],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -1229,6 +1242,35 @@ export default function App() {
                 ))}
               </div>
             </details>
+
+            {/* Shapes, not subjects.
+                The project brief has promised since day one that Nidus filters
+                out low-value relationship drama. Nothing implemented it, so it
+                was a promise in a document — the fourth signal found this year
+                that existed with nothing reading it.
+                These exclude a book's ENGINE, never its subject. "Love" can be
+                the subject of a serious book about grief or economics; a
+                product that refuses whole subjects is censoring rather than
+                filtering. */}
+            <fieldset className="mb-7">
+              <legend className="label-caps mb-1 text-muted">Keep out</legend>
+              <p className="mb-3 max-w-[52ch] text-[14px] text-muted">
+                Off unless you turn it on, and the shelf-check above will name anything it removes.
+              </p>
+              <div className="flex flex-col gap-1">
+                {SHAPES.map((sh) => (
+                  <label key={sh} className="transition-ui flex min-h-11 items-center gap-3 rounded-lg has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-accent">
+                    <input
+                      type="checkbox"
+                      checked={avoid.includes(sh)}
+                      onChange={(e) => setAvoid((prev) => (e.target.checked ? [...prev, sh] : prev.filter((x) => x !== sh)))}
+                      className="size-5 accent-[var(--color-accent)]"
+                    />
+                    <span className="text-[16px]">{SHAPE_COPY[sh]}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
             {asksFounder && (
               <details className="mb-7 rounded-xl border border-line bg-paper p-4">

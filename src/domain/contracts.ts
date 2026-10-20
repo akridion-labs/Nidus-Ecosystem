@@ -161,6 +161,15 @@ export type Edition = z.infer<typeof Edition>
  *    and never mixed into the Work's factual record.
  * ------------------------------------------------------------------ */
 
+/**
+ * The shapes a reader can rule out. Deliberately a short closed list: an open
+ * string field would become a tagging free-for-all, and a gate that can exclude
+ * anything is a gate nobody can predict.
+ */
+export const SHAPES = ['relationship-drama', 'suspense', 'horror'] as const
+export const Shape = z.enum(SHAPES)
+export type Shape = z.infer<typeof Shape>
+
 export const BookProfile = z.object({
   workId: z.string().min(1),
   /**
@@ -188,6 +197,22 @@ export const BookProfile = z.object({
   tooEarlyStages: z.array(FounderStage).default([]),
   /** What the reader would produce, in Apply mode. Null = nothing to produce. */
   suggestedArtifact: z.string().nullable().default(null),
+  /**
+   * What SHAPE the book is, as distinct from what it is about.
+   *
+   * The project brief has said from the start that Nidus filters out low-value
+   * relationship drama. Nothing implemented it, which made it a promise in a
+   * document and nothing else — the same family as the memory promise, the
+   * aspiration topics and the typed sentence, all of which were signals with
+   * nothing reading them.
+   *
+   * A shape is not a topic. "Love" can be the subject of a serious book about
+   * grief or economics; 'relationship-drama' describes a book whose ENGINE is
+   * who wants whom. The reader excludes shapes, never subjects, because a
+   * product that quietly refuses whole subjects is censoring rather than
+   * filtering.
+   */
+  shapes: z.array(Shape).default([]),
   provenance: Provenance,
 })
 export type BookProfile = z.infer<typeof BookProfile>
@@ -240,6 +265,13 @@ export const ReadingBrief = z.object({
   revisitCompleted: z.boolean().default(false),
   /** Topics the reader has explicitly confirmed, not clicks. Worth 10 points. */
   confirmedTopics: z.array(z.string().min(1)).default([]),
+  /**
+   * Shapes to keep out. Empty by default on purpose: a filter that hides books
+   * nobody asked it to hide is the opposite of showing your working. When it is
+   * set, the trace names what it put back and why, so the exclusion is visible
+   * rather than silent.
+   */
+  avoid: z.array(Shape).default([]),
 })
 export type ReadingBrief = z.infer<typeof ReadingBrief>
 

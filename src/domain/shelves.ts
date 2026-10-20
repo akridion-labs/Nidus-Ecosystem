@@ -107,10 +107,20 @@ export const SHELVES: Shelf[] = [
   },
   {
     id: 'sci-fi',
+    // Showed a deliberate zero from the day it was created until 20 October
+    // 2026. The zero was the honest answer and it stayed on screen for weeks;
+    // it is better to show an empty shelf than to pad one.
     name: 'Science fiction',
-    note: 'Asked for, and genuinely not here yet.',
+    note: 'Not spaceships for their own sake: worlds built to argue about incentives, perspective and how a thing falls apart.',
     topics: ['science-fiction', 'space', 'future', 'speculative'],
     brief: { purpose: 'curiosity', mode: 'enjoy', sessionMinutes: 20 },
+  },
+  {
+    id: 'the-journey',
+    name: 'For the journey',
+    note: 'For a train, a platform or a waiting room. Short pieces, real places, nothing to finish and nothing to apply.',
+    topics: ['travel', 'journey', 'history', 'india', 'everyday-life'],
+    brief: { purpose: 'curiosity', mode: 'explore', sessionMinutes: 20 },
   },
 ]
 

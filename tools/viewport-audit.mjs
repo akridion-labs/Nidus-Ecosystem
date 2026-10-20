@@ -12,6 +12,13 @@
 //    page does not scroll at all. A scrollWidth check reports a bug that is
 //    not there, and the fix for it would be to break the shelf.
 //
+// 3. WCAG 2.5.8 has an "Inline" exception: a target inside a sentence, sized by
+//    the line-height of the text around it, is exempt from the 24px minimum.
+//    Without that exception a probe reports every underlined word in a
+//    paragraph as a failure - and the "fix" is to pull the link out of the
+//    prose, which makes the page worse to satisfy a rule that does not apply.
+//    It showed up on "Put it back" in the auto-night sentence, which only
+//    renders after 20:00, so it had been invisible to every earlier run.
 // 2. One browser per viewport width. Chromium keeps vmax-sized fixed-layer
 //    metrics from a previous viewport in the same process, so whichever width
 //    runs second shows a phantom 16-24px of horizontal scroll on the livewash.
@@ -33,6 +40,25 @@ const srv = createServer(async (req, res) => {
     res.end(buf)
   } catch { res.statusCode = 404; res.end('no') }
 }).listen(8099)
+
+const probeTargets = (p) => p.evaluate(() => {
+  const inlineExempt = (el) => {
+    const parent = el.parentElement
+    if (!parent || el.tagName === 'A') return false
+    if (!['P', 'LI', 'SPAN'].includes(parent.tagName)) return false
+    const around = (parent.textContent || '').trim().length
+    const own = (el.textContent || '').trim().length
+    return around > own + 20
+  }
+  return [...document.querySelectorAll('button,a,input,summary,[tabindex="0"]')]
+    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+    .filter(({ el, r }) =>
+      r.width > 0 && r.height > 0 && (r.height < 24 || r.width < 24) &&
+      !el.closest('.shelf-row') && getComputedStyle(el).position !== 'absolute' &&
+      !inlineExempt(el))
+    .map(({ el, r }) => `${el.tagName}:${(el.textContent || '').trim().slice(0, 22)}:${Math.round(r.width)}x${Math.round(r.height)}`)
+    .slice(0, 6)
+})
 
 const hscroll = (p) => p.evaluate(() => {
   const y = window.scrollY
@@ -65,9 +91,11 @@ for (const w of [430, 768, 1440]) {
     })
     return r.violations.map((v) => ({ id: v.id, nodes: v.nodes.length }))
   })
+  const tiny = await probeTargets(p)
   const scrolled = Object.entries(scroll).filter(([, x]) => x !== 0)
-  if (scrolled.length > 0 || violations.length > 0) bad++
-  console.log(w, JSON.stringify(scroll), 'axe', JSON.stringify(violations))
+  if (scrolled.length > 0 || violations.length > 0 || tiny.length > 0) bad++
+  console.log(w, JSON.stringify(scroll), 'axe', JSON.stringify(violations),
+    tiny.length > 0 ? `tiny:${tiny.join(',')}` : '')
   await b.close()
 }
 srv.close()
