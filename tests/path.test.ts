@@ -195,3 +195,36 @@ test('used shops are marked as used', async () => {
   assert.ok(used.length >= 2, 'the used-book route is the cheapest one and needs more than a token')
   assert.ok(RETAILERS.some((r) => r.kind === 'new'), 'no new-book shop at all')
 })
+
+test('the cheapest ordering never removes a book, it only reorders the routes', async () => {
+  const { isEligible } = await import('../src/domain/ranker.ts')
+  // The distinction that matters: 'free-only' is a GATE and 'cheapest' is a
+  // ROUTING preference. If 'cheapest' ever started excluding, a student asking
+  // for the cheapest copy would silently lose most of the catalogue - which is
+  // the opposite of what they asked for.
+  const cheap = brief({ budget: 'cheapest' })
+  const free = brief({ budget: 'free-only' })
+  let gatedByCheap = 0
+  let gatedByFree = 0
+  for (const i of loaded.items) {
+    const a = isEligible(i, cheap)
+    const b = isEligible(i, free)
+    if (a.ok === false && a.kind === 'budget') gatedByCheap++
+    if (b.ok === false && b.kind === 'budget') gatedByFree++
+  }
+  assert.equal(gatedByCheap, 0, 'the cheapest preference excluded books instead of reordering')
+  assert.ok(gatedByFree > 0, 'free-only stopped gating, which means the gate is broken')
+})
+
+test('cheapest-first really is cheapest first, and free beats everything', () => {
+  const pd = findRoutes(item('five-rings'), true, 'cost')
+  assert.equal(pd[0].label, 'Read it free, legally')
+  const paid = findRoutes(item('mom-test'), false, 'cost')
+  assert.equal(paid[0].label, 'A library near you')
+  assert.equal(paid.at(-1)!.label, 'New, online')
+  // Same routes, same count - reordering must never drop one.
+  assert.deepEqual(
+    [...findRoutes(item('mom-test'), false, 'speed')].map((r) => r.label).sort(),
+    [...paid].map((r) => r.label).sort(),
+  )
+})

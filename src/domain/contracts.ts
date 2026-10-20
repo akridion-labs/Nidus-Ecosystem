@@ -77,7 +77,13 @@ export type FormatPreference = z.infer<typeof FormatPreference>
  * shelf and out-of-copyright texts. Nidus has no price feed, so this is the
  * only affordability claim it can make without inventing numbers.
  */
-export const BUDGETS = ['any', 'free-only'] as const
+/**
+ * 'cheapest' is a ROUTING preference, not a gate: it never removes a book, it
+ * reorders where to look for it so the second-hand and library routes come
+ * first. 'free-only' is the gate. Conflating the two would mean a student
+ * asking for the cheapest copy silently loses most of the catalogue.
+ */
+export const BUDGETS = ['any', 'cheapest', 'free-only'] as const
 export const Budget = z.enum(BUDGETS)
 export type Budget = z.infer<typeof Budget>
 

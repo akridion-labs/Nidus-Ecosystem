@@ -142,7 +142,28 @@ export const SPEED_COPY: Record<RouteSpeed, string> = {
   days: 'Usually a few days',
 }
 
-export function findRoutes(item: CatalogueItem, publicDomain: boolean): Route[] {
+/**
+ * Cheapest first, for a reader who said price matters more than speed.
+ *
+ * The order is editorial and stated rather than computed, because Nidus has no
+ * price feed and will not pretend to: this is the order these routes USUALLY
+ * come in, not a claim about any particular book. Free and legal beats a
+ * library card beats a used copy beats a new one. That holds without knowing a
+ * single price, which is exactly why it is safe to show.
+ */
+const COST_ORDER: Record<string, number> = {
+  'Read it free, legally': 0,
+  'A library near you': 1,
+  'Second-hand': 2,
+  'A bookshop near you — map and directions': 3,
+  'New, online': 4,
+}
+
+export function findRoutes(
+  item: CatalogueItem,
+  publicDomain: boolean,
+  order: 'speed' | 'cost' = 'speed',
+): Route[] {
   const q = encodeURIComponent(`${item.work.title} ${item.work.author}`)
   const routes: Route[] = []
 
@@ -181,6 +202,9 @@ export function findRoutes(item: CatalogueItem, publicDomain: boolean): Route[] 
       speed: 'days',
     },
   )
+  if (order === 'cost') {
+    routes.sort((a, b) => (COST_ORDER[a.label] ?? 99) - (COST_ORDER[b.label] ?? 99))
+  }
   return routes
 }
 

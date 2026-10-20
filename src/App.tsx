@@ -60,6 +60,7 @@ const FORMAT_COPY: Record<FormatPreference, { label: string; sub?: string }> = {
 
 const BUDGET_COPY: Record<Budget, { label: string; sub: string }> = {
   any: { label: 'I can buy a book', sub: 'No limit on the route' },
+  cheapest: { label: 'Cheapest route', sub: 'Student budget — used and library first' },
   'free-only': { label: 'Free only', sub: 'My shelf, or out of copyright' },
 }
 
@@ -280,7 +281,11 @@ function BookSheet({ item, brief, onClose }: {
   onClose: () => void
 }) {
   const steps = readingPath(catalogue, item.work.id, brief)
-  const routes = findRoutes(item, PUBLIC_DOMAIN_WORKS.includes(item.work.id))
+  const routes = findRoutes(
+    item,
+    PUBLIC_DOMAIN_WORKS.includes(item.work.id),
+    brief.budget === 'any' ? 'speed' : 'cost',
+  )
   const shops = retailerLinks(item)
   // Which shop's line to show. Hover or focus, one at a time, so six shops cost
   // one line of vertical space instead of six.
@@ -335,7 +340,16 @@ function BookSheet({ item, brief, onClose }: {
       </div>
 
       <div className="mt-6 border-t border-line pt-5">
-        <p className="label-caps text-muted">Where to look for a copy</p>
+        <p className="label-caps text-muted">
+          Where to look for a copy
+          {brief.budget !== 'any' && <span className="text-accent"> · cheapest first</span>}
+        </p>
+        {brief.budget !== 'any' && (
+          <p className="mt-1 max-w-[52ch] text-[14px] text-muted">
+            Ordered by what these routes usually cost, not by what this book costs — Nidus has no
+            price feed. Free and legal, then a library, then second-hand, then new.
+          </p>
+        )}
         <ul className="mt-3 space-y-3">
           {routes.map((r) => (
             <li key={r.label} className="flex gap-3">
