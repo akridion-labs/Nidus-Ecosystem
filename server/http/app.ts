@@ -1,11 +1,12 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import { mountGoogleAuth, googleConfigFromEnv } from './google.ts'
 import type { Request, Response, NextFunction } from 'express'
 import type { Sql } from '../db/client.ts'
 import * as repo from '../db/repo.ts'
 import {
   READER_COOKIE, CSRF_COOKIE, bearerMatches, cookieOptions, csrfCookieOptions,
-  csrfGuard, newCsrfToken, rateLimit, securityHeaders,
+  cors, csrfGuard, newCsrfToken, rateLimit, securityHeaders,
 } from './security.ts'
 import {
   AdaptationDecision, AdaptationOutcome, CheckInRequest, CONSENT_VERSION,
@@ -30,6 +31,10 @@ export type AppOptions = {
    * rate limit meaningless. Set it only to the real hop count.
    */
   trustProxyHops?: number
+  /** Google OIDC. Omitted = read from the environment; null = sign-in disabled. */
+  googleConfig?: import('./google.ts').GoogleConfig | null
+  /** Injected by the tests so no test ever reaches Google over the network. */
+  googleExchange?: typeof import('./google.ts').exchangeCodeWithGoogle
 }
 
 declare global {
@@ -55,11 +60,31 @@ export function createApp(opts: AppOptions) {
     )
   }
 
+  // Before everything: a browser decides whether it may even look at the
+  // response, and a preflight must not be rate-limited or CSRF-guarded.
+  app.use(cors(opts.allowedOrigins ?? []))
   app.use(securityHeaders)
   // Payload cap. A reading pilot has no reason to accept a large body.
   app.use(express.json({ limit: '16kb' }))
   app.use(cookieParser())
   app.use(csrfGuard(opts.allowedOrigins ?? [], ['/api/consent']))
+
+  /**
+   * Sign in with Google. Mounted before requireReader exists, because its whole
+   * job is to create the cookie that requireReader later reads.
+   *
+   * The callback is a GET that Google redirects the browser to, so it carries
+   * no Origin header and no CSRF token and cannot. Its protection is the `state`
+   * parameter compared against an httpOnly cookie — which is what state is for.
+   */
+  mountGoogleAuth({
+    app,
+    sql,
+    config: opts.googleConfig ?? googleConfigFromEnv(process.env),
+    secure,
+    retentionDays: RETENTION_DAYS,
+    exchange: opts.googleExchange,
+  })
 
   /** Resolves the reader from the cookie. Never trusts an id from the body. */
   const requireReader = async (req: Request, res: Response, next: NextFunction) => {

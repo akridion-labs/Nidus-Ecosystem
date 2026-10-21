@@ -35,6 +35,47 @@ function safeEqual(a: string, b: string) {
  * the Origin header can be absent, and a cookie alone can be replayed by a
  * form post from another site.
  */
+/**
+ * CORS, narrowly.
+ *
+ * The client and the API are different origins in development — Vite on 5173,
+ * the server on 8787 — so without these headers every browser fetch from the
+ * page is refused before it reaches any route. That is the whole of "the client
+ * is not wired to the server": not a missing feature, a missing header. It went
+ * unnoticed because the server tests call it with fetch from Node, which has no
+ * same-origin policy to enforce.
+ *
+ * Two rules that matter more than the convenience:
+ *
+ * 1. The origin is ECHOED FROM THE ALLOWLIST, never reflected from the request
+ *    and never `*`. Reflecting whatever origin asked is the same as having no
+ *    policy, with extra steps.
+ * 2. `Allow-Credentials: true` is required because the session is a cookie —
+ *    and browsers forbid combining it with `*`, which is a second reason rule 1
+ *    is not optional. Together they mean: a page on an allowed origin may send
+ *    the cookie; any other page gets nothing.
+ *
+ * `Vary: Origin` so a cache never serves one origin's response to another.
+ */
+export function cors(allowedOrigins: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin
+    res.setHeader('Vary', 'Origin')
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Allow-Headers', `content-type, ${CSRF_HEADER}`)
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+      res.setHeader('Access-Control-Max-Age', '600')
+    }
+    // A preflight is answered whether or not the origin is allowed; an allowed
+    // one carries the headers above and a disallowed one does not, which is
+    // what the browser then refuses on.
+    if (req.method === 'OPTIONS') return res.sendStatus(204)
+    next()
+  }
+}
+
 export function csrfGuard(allowedOrigins: string[], exempt: string[] = []) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next()

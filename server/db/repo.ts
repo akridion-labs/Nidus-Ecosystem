@@ -69,6 +69,52 @@ export async function createReaderWithConsent(
   })
 }
 
+/**
+ * Finds the reader behind a Google `sub`, or creates one, and gives them a
+ * fresh session credential either way.
+ *
+ * Keyed on `sub` and nothing else. The email is not written here at all — the
+ * column exists for readers who separately consent to be contacted, and that
+ * consent is its own row. Google offers an email on every sign-in; taking it
+ * because it was offered is exactly how "we store the minimum" stops being
+ * true without anyone deciding to change it.
+ *
+ * Signing in again ROTATES the credential rather than reusing the old one, so
+ * an old cookie from a shared or borrowed device stops working the moment the
+ * reader signs in somewhere else.
+ */
+export async function linkOrCreateGoogleReader(
+  sql: Sql,
+  input: { googleSub: string; displayName: string | null; credential: string; retentionDays: number },
+): Promise<{ id: ReaderId; created: boolean }> {
+  return sql.begin(async (tx) => {
+    const [existing] = await tx<{ id: string }[]>`
+      SELECT id FROM readers WHERE google_sub = ${input.googleSub}`
+
+    if (existing) {
+      await tx`
+        UPDATE readers
+        SET credential_hash = ${hashCredential(input.credential)},
+            display_name    = COALESCE(${input.displayName}, display_name),
+            last_seen_at    = now(),
+            expires_at      = now() + (${input.retentionDays} || ' days')::interval
+        WHERE id = ${existing.id}`
+      await tx`INSERT INTO audit_log (reader_id, action, detail)
+               VALUES (${existing.id}, 'signin.google', ${tx.json({ returning: true })})`
+      return { id: existing.id, created: false }
+    }
+
+    const [reader] = await tx<{ id: string }[]>`
+      INSERT INTO readers (credential_hash, google_sub, display_name, timezone, expires_at)
+      VALUES (${hashCredential(input.credential)}, ${input.googleSub}, ${input.displayName},
+              'Asia/Kolkata', now() + (${input.retentionDays} || ' days')::interval)
+      RETURNING id`
+    await tx`INSERT INTO audit_log (reader_id, action, detail)
+             VALUES (${reader.id}, 'signin.google', ${tx.json({ returning: false })})`
+    return { id: reader.id, created: true }
+  })
+}
+
 export async function readerByCredential(sql: Sql, credential: string) {
   const [reader] = await sql<{ id: string; timezone: string; expires_at: Date }[]>`
     SELECT id, timezone, expires_at FROM readers

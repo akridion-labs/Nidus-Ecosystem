@@ -15,6 +15,12 @@ export async function startServer(
   sql: Sql,
   operatorToken?: string,
   limits?: { consentPerMinute?: number; writesPerMinute?: number; operatorPerMinute?: number },
+  google?: {
+    config?: import('./http/google.ts').GoogleConfig | null
+    exchange?: import('./http/google.ts').GoogleConfig extends never ? never
+      : (c: import('./http/google.ts').GoogleConfig, code: string, verifier: string)
+        => Promise<{ sub: string; name?: string } | null>
+  },
 ) {
   // Tests share one loopback address, so production limits would throttle the
   // suite rather than the attacker. The limiter itself has its own test.
@@ -22,6 +28,10 @@ export async function startServer(
     sql, secureCookies: false, allowedOrigins: ['http://localhost:3000'], operatorToken,
     rankerVersion: 'test-ranker-1',
     limits: limits ?? { consentPerMinute: 10_000, writesPerMinute: 10_000, operatorPerMinute: 10_000 },
+    // Default null: a test that does not ask for Google gets sign-in disabled,
+    // so no test can accidentally depend on a real client id in the shell.
+    googleConfig: google?.config ?? null,
+    googleExchange: google?.exchange,
   })
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s))
