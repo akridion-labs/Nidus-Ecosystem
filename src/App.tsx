@@ -12,6 +12,7 @@ import type { CatalogueItem } from './domain/catalogue.ts'
 import { Wordmark } from './brand/Wordmark.tsx'
 import { Spine } from './brand/Spine.tsx'
 import { ReadingScene } from './brand/ReadingScene.tsx'
+import { WhyChoosing } from './sections/WhyChoosing.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
@@ -1779,6 +1780,8 @@ export default function App() {
          </div>
 
           <Shelves onPick={applyShelf} brief={brief} />
+
+          <WhyChoosing />
 
           <section aria-labelledby="vs" className="mt-16 rounded-2xl border border-line bg-surface p-6 sm:p-10">
             <h2 id="vs" className="display text-[2rem]">Why not just ask a chatbot?</h2>

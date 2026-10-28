@@ -1,0 +1,85 @@
+{
+  "generatedOn": "2026-10-27",
+  "rule": "Statistics expire after 3 years of data age. Studies do not expire but must declare design and limitation.",
+  "derived": {
+    "medianBooksPerYear": 2,
+    "shareWhoReadNothing": 0.4,
+    "weeksPerBookAtMedian": 26,
+    "aBookAWeekMultiple": 26,
+    "source": {
+      "org": "YouGov",
+      "url": "https://yougov.com/en-us/articles/53804-most-americans-didnt-read-many-books-in-2025",
+      "dataYear": 2025,
+      "caveat": "Opt-in online panel of 2,203 US adults, self-reported, ±3 points. Not India, and not a census."
+    }
+  },
+  "statistics": [
+    {
+      "id": "us-reading-frequency",
+      "kind": "statistic",
+      "claim": "Two in five American adults read no books at all last year, and the median was two.",
+      "values": {
+        "readNoBooks": 0.4,
+        "medianBooks": 2,
+        "meanBooks": 8
+      },
+      "measure": "self-reported books read in a calendar year",
+      "dataYear": 2025,
+      "org": "YouGov",
+      "url": "https://yougov.com/en-us/articles/53804-most-americans-didnt-read-many-books-in-2025",
+      "checkedOn": "2026-10-27",
+      "caveat": "Opt-in online panel of 2,203 US adults, self-reported, ±3 points. Not India, and not a census."
+    }
+  ],
+  "studies": [
+    {
+      "id": "reading-and-longevity",
+      "kind": "study",
+      "claim": "Over twelve years, book readers aged 50+ died at a lower rate than non-readers.",
+      "finding": "hazard ratio 0.80 after adjustment, with a dose-response across tertiles",
+      "design": "correlational",
+      "detail": "Prospective cohort, 3,635 adults aged 50 and over from the US Health and Retirement Study, Cox proportional hazards, adjusted for age, sex, race, education, comorbidities, self-rated health, wealth, marital status and depression.",
+      "limitation": "Observational, so it cannot show that reading caused the difference: people already healthier, wealthier or more cognitively able may simply read more.",
+      "citation": "Bavishi, Slade & Levy, Social Science & Medicine 164:44-48 (2016)",
+      "url": "https://doi.org/10.1016/j.socscimed.2016.07.014",
+      "checkedOn": "2026-10-27"
+    },
+    {
+      "id": "fiction-and-other-minds",
+      "kind": "study",
+      "claim": "People who have read more fiction score slightly higher on reading emotion in faces.",
+      "finding": "partial r = 0.34 with fiction exposure; r = -0.26 with non-fiction exposure",
+      "design": "correlational",
+      "detail": "Cross-sectional, 94 adults in Toronto, print exposure measured by author-name recognition rather than by reading.",
+      "limitation": "The authors state the causal direction is undetermined — more empathic people may simply choose fiction. The experimental version of this claim has largely failed to replicate: a three-lab randomised study found d = 0.07 (null), and a meta-analysis of 14 studies found a fragile pooled g = 0.15 that drops to a trend when any single study is removed.",
+      "citation": "Mar, Oatley, Hirsh, dela Paz & Peterson, Journal of Research in Personality 40:694-712 (2006); replication status from Panero et al., JPSP 111(9) (2016) and Dodell-Feder & Tamir, JEP:General (2018)",
+      "url": "https://www.yorku.ca/mar/Mar%20et%20al%202006_bookworms%20versus%20nerds.pdf",
+      "checkedOn": "2026-10-27"
+    }
+  ],
+  "refused": [
+    {
+      "wanted": "How many books are published worldwide each year",
+      "why": "No such figure is published. The International ISBN Agency has no annual report and no statistics page; the IPA/Nielsen survey covers only member countries and deliberately gives no world total; UNESCO stopped collecting book-production data and its last tables are archived from 2004-2009.",
+      "whatGetsQuotedInstead": "Around 2.6 million a year, which traces to a compiled table whose rows are dated 2013 to 2018."
+    },
+    {
+      "wanted": "How many titles are published in India each year",
+      "why": "India's ISBN agency publishes live counters rendered by JavaScript and no dated report. The only citable Indian figure is 281,091 ISBN registrations for 2022, which is both out of date by this script's rule and a different measure from titles.",
+      "whatGetsQuotedInstead": "90,000 new titles, a 2013 figure."
+    },
+    {
+      "wanted": "What share of books people start that they finish",
+      "why": "No representative measurement exists. The one dataset quoted is from readers given free advance copies in exchange for telemetry, which is maximally self-selected, and its denominator excludes everyone who never opened the book.",
+      "whatGetsQuotedInstead": "Completion-rate bands from a publisher analytics vendor, undated."
+    }
+  ],
+  "rejectedSources": [
+    {
+      "id": "india-isbn-registrations",
+      "claim": "India registered 281,091 ISBNs.",
+      "dataYear": 2022,
+      "reason": "data year 2022 is 4 years old; the limit is 3"
+    }
+  ]
+}
