@@ -2,8 +2,11 @@
 
 **Written 28 October 2026, before any reader has been contacted and before any
 data exists.** That order is the only thing that makes this document worth
-anything. Committed to git on the day it was written so the timestamp is not
-mine to move.
+anything. Committed to git as `nidus-pilot/docs/`, commit **`17b02c6`**, on 28
+October 2026 and before any reader was contacted — so the thresholds in section
+6 are not mine to move afterwards. The first draft of this sentence claimed a
+commit that did not exist, because the documents folder is not a repository.
+The commit is real as of that hash and not before it.
 
 The thresholds below are computed by `nidus-pilot/tools/experiment-power.mjs`,
 not chosen. Run it; it prints the whole table.
