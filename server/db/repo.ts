@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { Sql } from './client.ts'
+import type { IntentStatus } from '../../src/domain/contracts.ts'
 
 /**
  * Every function here takes readerId first and filters on it. That is the only
@@ -116,8 +117,11 @@ export async function linkOrCreateGoogleReader(
 }
 
 export async function readerByCredential(sql: Sql, credential: string) {
-  const [reader] = await sql<{ id: string; timezone: string; expires_at: Date }[]>`
-    SELECT id, timezone, expires_at FROM readers
+  // The role is read here, on every authenticated request, rather than cached
+  // in the cookie. A role in the cookie is a role the server stops checking,
+  // and revoking it would then mean waiting for the cookie to expire.
+  const [reader] = await sql<{ id: string; timezone: string; expires_at: Date; role: string }[]>`
+    SELECT id, timezone, expires_at, role FROM readers
     WHERE credential_hash = ${hashCredential(credential)} AND expires_at > now()`
   if (reader) await sql`UPDATE readers SET last_seen_at = now() WHERE id = ${reader.id}`
   return reader ?? null
@@ -127,6 +131,58 @@ export async function revokeConsent(sql: Sql, readerId: ReaderId) {
   await sql`UPDATE consent_records SET revoked_at = now()
             WHERE reader_id = ${readerId} AND revoked_at IS NULL`
   await sql`INSERT INTO audit_log (reader_id, action) VALUES (${readerId}, 'consent.revoked')`
+}
+
+/* ---------------- the shelf ---------------- */
+
+/**
+ * Set or change what a reader has said about a book.
+ *
+ * Upsert rather than insert: a reader who finishes a book they owned is
+ * correcting one fact, not adding a second opinion for the ranker to choose
+ * between. `updated_at` moves, `created_at` does not — when they first said it
+ * is part of the record.
+ */
+export async function setIntents(
+  sql: Sql,
+  readerId: ReaderId,
+  intents: { workId: string; status: IntentStatus; note?: string | null }[],
+) {
+  if (intents.length === 0) return 0
+  return sql.begin(async (tx) => {
+    for (const i of intents) {
+      await tx`
+        INSERT INTO book_intents (reader_id, work_id, status, note)
+        VALUES (${readerId}, ${i.workId}, ${i.status}, ${i.note ?? null})
+        ON CONFLICT (reader_id, work_id) DO UPDATE
+          SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = now()`
+    }
+    return intents.length
+  })
+}
+
+export async function intentsFor(sql: Sql, readerId: ReaderId) {
+  return sql<{ workId: string; status: IntentStatus; note: string | null }[]>`
+    SELECT work_id AS "workId", status, note FROM book_intents
+    WHERE reader_id = ${readerId} ORDER BY work_id`
+}
+
+export async function removeIntent(sql: Sql, readerId: ReaderId, workId: string) {
+  const rows = await sql<{ work_id: string }[]>`
+    DELETE FROM book_intents WHERE reader_id = ${readerId} AND work_id = ${workId}
+    RETURNING work_id`
+  return rows.length === 1
+}
+
+/**
+ * Grant the admin role. Deliberately not reachable from any HTTP route: a
+ * route that grants admin is a route that can be talked into granting admin.
+ * This is called by `tools/seed-deepak.mjs`, which needs the database.
+ */
+export async function setRole(sql: Sql, readerId: ReaderId, role: 'reader' | 'admin') {
+  await sql`UPDATE readers SET role = ${role} WHERE id = ${readerId}`
+  await sql`INSERT INTO audit_log (reader_id, action, detail)
+            VALUES (${readerId}, 'role.set', ${sql.json({ role })})`
 }
 
 /* ---------------- journeys ---------------- */
@@ -307,8 +363,12 @@ export async function exportReader(sql: Sql, readerId: ReaderId) {
     feedbackFor(sql, readerId),
     adaptationsFor(sql, readerId),
   ])
+  const shelf = await intentsFor(sql, readerId)
   await sql`INSERT INTO audit_log (reader_id, action) VALUES (${readerId}, 'data.exported')`
-  return { reader, consent, journeys: j, goals, sessions, feedback: fb, adaptations: adapt }
+  // The shelf is included because this route is what "export everything you
+  // hold about me" means. A table added later and left out here turns that
+  // promise into a half-truth.
+  return { reader, consent, shelf, journeys: j, goals, sessions, feedback: fb, adaptations: adapt }
 }
 
 /**

@@ -28,7 +28,15 @@ export async function migrate(sql: Sql) {
   return ran
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * `import.meta.url` is percent-encoded and `process.argv[1]` is not, so this
+ * guard compared "file:///Users/.../Nidus%20ecosystem/..." against
+ * "/Users/.../Nidus ecosystem/..." and was false for anyone whose project path
+ * contains a space. `npm run migrate` then printed nothing, exited 0, and
+ * applied no migrations — which looks exactly like "already up to date".
+ * `import.meta.filename` is the decoded path, and is what the other tools use.
+ */
+if (import.meta.filename === process.argv[1]) {
   const sql = connect()
   const ran = await migrate(sql)
   console.log(ran.length ? `applied: ${ran.join(', ')}` : 'nothing to apply')

@@ -319,12 +319,18 @@ test('export returns everything held about the reader and nothing else', async (
     rankerVersion: 'r', catalogueVersion: 'cv',
   })
   await c.call('POST', '/api/sessions', { minutes: 12 })
+  await c.call('PUT', '/api/shelf', { intents: [{ workId: 'zero-to-one', status: 'OWNED' }] })
   const res = await c.call('GET', '/api/export')
   assert.equal(res.status, 200)
+  // This list is the point of the test: a table added later and not exported
+  // turns "everything we hold about you" into a half-truth, and the failure
+  // should land here rather than on a reader asking for their data. The shelf
+  // was added in 0003 and this line is how that was noticed.
   assert.deepEqual(
     Object.keys(res.body).sort(),
-    ['adaptations', 'consent', 'feedback', 'goals', 'journeys', 'reader', 'sessions'],
+    ['adaptations', 'consent', 'feedback', 'goals', 'journeys', 'reader', 'sessions', 'shelf'],
   )
+  assert.equal(res.body.shelf.length, 1, 'the shelf was exported empty')
   assert.equal(res.body.consent[0].consent_version.length > 0, true)
   assert.equal('credential_hash' in res.body.reader, false, 'never hand back the stored hash')
 })

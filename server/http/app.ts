@@ -11,7 +11,7 @@ import {
 import {
   AdaptationDecision, AdaptationOutcome, CheckInRequest, CONSENT_VERSION,
   ConsentRequest, DISCLOSED_FIELDS, FeedbackRequest, GoalRequest, JourneyRequest,
-  RETENTION_DAYS,
+  RETENTION_DAYS, ShelfRequest,
 } from './contracts.ts'
 import { proposeFor } from './adapt.ts'
 
@@ -97,6 +97,25 @@ export function createApp(opts: AppOptions) {
   }
 
   /**
+   * The master login, as DR-009 settled it: a role on an ordinary account,
+   * read from the database on every request.
+   *
+   * Not a separate door, not a second password, and above all not a flag in
+   * the bundle. Anything the client checks, a visitor can flip in the console;
+   * this is checked where the visitor cannot reach. An unauthenticated caller
+   * gets 401 from requireReader first, and a signed-in non-admin gets 403 with
+   * nothing that confirms the route exists for anyone else.
+   */
+  const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    const credential = req.cookies?.[READER_COOKIE]
+    const reader = credential ? await repo.readerByCredential(sql, credential) : null
+    if (!reader) return res.status(401).json({ error: 'no_consent' })
+    if (reader.role !== 'admin') return res.status(403).json({ error: 'forbidden' })
+    req.readerId = reader.id
+    next()
+  }
+
+  /**
    * Writes are limited per READER as well as per IP. An IP limit alone does not
    * stop one consenting reader (or one script holding a valid cookie) from
    * filling the database, and a reader behind CGNAT shares an IP with thousands.
@@ -156,6 +175,38 @@ export function createApp(opts: AppOptions) {
 
   app.get('/api/me', requireReader, wrap(async (req, res) => {
     res.json(await repo.exportReader(sql, req.readerId!))
+  }))
+
+  /* ---------- the shelf ---------- */
+
+  app.get('/api/shelf', requireReader, wrap(async (req, res) => {
+    res.json({ intents: await repo.intentsFor(sql, req.readerId!) })
+  }))
+
+  app.put('/api/shelf', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {
+    const parsed = ShelfRequest.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'invalid', issues: parsed.error.issues })
+    const n = await repo.setIntents(sql, req.readerId!, parsed.data.intents)
+    res.json({ saved: n })
+  }))
+
+  app.delete('/api/shelf/:workId', requireReader, perReaderWrites, wrap(async (req, res) => {
+    // Express types a param as string | string[]; a wildcard route would give
+    // an array. This route has one param and it is a string, but the cast is
+    // where that assumption gets stated rather than assumed.
+    const workId = String(req.params.workId)
+    const gone = await repo.removeIntent(sql, req.readerId!, workId)
+    res.status(gone ? 200 : 404).json({ removed: gone })
+  }))
+
+  /**
+   * The only admin route that exists today. It answers the question the master
+   * login was actually wanted for — "is anyone using this?" — and it returns
+   * counts, never any reader's rows: an operator does not need to read a
+   * stranger's shelf to know how many strangers there are.
+   */
+  app.get('/api/admin/overview', requireAdmin, wrap(async (_req, res) => {
+    res.json(await repo.operatorCounts(sql))
   }))
 
   app.post('/api/journeys', requireReader, rateLimit({ windowMs: 60_000, max: writeMax }), perReaderWrites, wrap(async (req, res) => {

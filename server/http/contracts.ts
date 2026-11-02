@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { IntentStatus } from '../../src/domain/contracts.ts'
 
 /** Validation at the boundary. Nothing reaches the repository unparsed. */
 
@@ -46,6 +47,19 @@ export const FeedbackRequest = z.object({
   kind: z.enum(['useful', 'boring', 'too-busy', 'too-difficult', 'not-relevant', 'did-not-stick']),
   note: z.string().max(2000).default(''),
   journeyId: z.uuid().nullable().optional(),
+})
+
+/**
+ * A shelf update. Capped at 200 books in one request: the largest real shelf
+ * seen so far is thirty-three, and an uncapped array is a free way to make the
+ * server do unbounded work with one valid cookie.
+ */
+export const ShelfRequest = z.object({
+  intents: z.array(z.object({
+    workId: z.string().min(1).max(120),
+    status: IntentStatus,
+    note: z.string().max(500).nullish(),
+  })).min(1).max(200),
 })
 
 export const AdaptationDecision = z.object({ accept: z.boolean() })
