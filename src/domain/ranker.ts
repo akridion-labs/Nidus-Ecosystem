@@ -155,8 +155,44 @@ function topicFit(item: CatalogueItem, purpose: Purpose): number {
  */
 function focusFit(item: CatalogueItem, brief: ReadingBrief, purpose: Purpose): number {
   if (brief.confirmedTopics.length === 0) return topicFit(item, purpose)
+  return overlapFit(item, brief)
+}
+
+/**
+ * How much of what the reader named this book actually covers.
+ *
+ * This used to be `Math.min(hits, 2) / 2` — full marks at two topics, however
+ * many were named. The cap was there to stop a book tagged with twelve topics
+ * farming the term. **No such book exists.** Measured across the catalogue on
+ * 3 November: every book carries two to five topics, and exactly one carries
+ * five. The cap was defending against a shape of row the catalogue has never
+ * contained, and the defence cost real signal:
+ *
+ *   named [judgement, strategy, company-building]
+ *     -> 14 books tied at the cap, of which only 3 covered all three
+ *   named [mythology, dharma, india, moral-choice]
+ *     -> 7 tied at the cap, of which 1 covered all four
+ *
+ * So eleven books that matched two scored exactly as well as the three that
+ * matched everything asked for, and the tie was then broken by terms the
+ * reader never mentioned. The more specific the reader was, the more of what
+ * they said got thrown away — which is the opposite of what naming four
+ * topics is supposed to do.
+ *
+ * `hits / named` restores it. Farming is prevented by the real constraint
+ * instead: a book has at most five topics, and `focusTopics` caps what a
+ * reader can name at four, so covering everything asked means the book
+ * genuinely is about those things. The ratio cannot exceed 1 because hits are
+ * counted from the named list.
+ *
+ * A reader who names one topic can still reach full marks on one hit. That is
+ * correct: they asked for one thing and the book is about it.
+ */
+function overlapFit(item: CatalogueItem, brief: ReadingBrief): number {
+  const named = brief.confirmedTopics.length
+  if (named === 0) return 0
   const hits = item.profile.topics.filter((t) => brief.confirmedTopics.includes(t)).length
-  return Math.min(hits, 2) / 2
+  return clamp(hits / named, 0, 1)
 }
 
 /** Time and difficulty together, as the research report specifies one term. */
@@ -176,14 +212,10 @@ function timeAndDifficultyFit(item: CatalogueItem, brief: ReadingBrief): number 
 
 function confirmedHistoryFit(item: CatalogueItem, brief: ReadingBrief): number {
   if (brief.confirmedTopics.length === 0) return 0.5 // unknown, not zero
-  const hits = item.profile.topics.filter((t) => brief.confirmedTopics.includes(t)).length
-  // Capped at 2, matching topicFit, rather than at 1. While this was binary,
-  // a book covering both confirmed topics scored the same as one covering a
-  // single topic, so "say the true thing, kindly" (feedback + management)
-  // ranked The E-Myth Revisited, which matches only management, above Radical
-  // Candor, which matches both. The cap exists so that a book tagged with
-  // twelve topics cannot farm the term; 2 is enough to break that tie.
-  return Math.min(hits, 2) / 2
+  // Same cap, same measurement, same fix as overlapFit above. This term had
+  // the bug twice over: it was binary before 20 October, capped at two after,
+  // and proportional from 3 November.
+  return overlapFit(item, brief)
 }
 
 /* ================================================================== *

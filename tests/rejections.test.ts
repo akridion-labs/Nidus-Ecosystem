@@ -134,3 +134,55 @@ test('a rejection of a book not in the catalogue is ignored rather than throwing
   }))
   assert.deepEqual(sigs, { tooHardAt: null, tiredTopics: [], cannotObtain: false })
 })
+
+/* ================= the topic overlap term ================= */
+
+test('covering everything the reader named beats covering some of it', () => {
+  // The cap this replaces gave full marks at two hits however many were named,
+  // so eleven books matching two scored exactly as well as the three matching
+  // all three — and terms the reader never mentioned then broke the tie.
+  // Measured 3 Nov: no book carries more than five topics, so the farming the
+  // cap defended against is not a shape this catalogue has ever held.
+  const named = ['judgement', 'strategy', 'company-building']
+  const brief = {
+    purpose: 'company-building' as const, mode: 'explore' as const,
+    language: 'en' as const, sessionMinutes: 20, intents: [], confirmedTopics: named,
+  }
+  const r = rank(c, ReadingBrief.parse(brief))
+
+  const covers = (id: string) =>
+    c.items.find((i) => i.work.id === id)!.profile.topics.filter((t) => named.includes(t)).length
+
+  // The strongest-fit result must cover everything asked for, when books that
+  // do exist in the catalogue.
+  const best = r.decisions.find((d) => d.role === 'strongest-fit')!
+  assert.equal(covers(best.workId), named.length,
+    `strongest fit covers only ${covers(best.workId)} of ${named.length} named topics`)
+
+  // And the purpose term must actually differ between a 3/3 and a 2/3 book,
+  // which is the thing the cap flattened.
+  const three = c.items.find((i) => covers(i.work.id) === 3)!
+  const two = c.items.find((i) => covers(i.work.id) === 2)!
+  const scoreFor = (id: string) => {
+    const item = c.items.find((i) => i.work.id === id)!
+    const one = rank(c, ReadingBrief.parse({ ...brief, author: item.work.author }))
+    return one.decisions.find((d) => d.workId === id)!.components
+      .find((x) => x.signal === 'purpose')!.points
+  }
+  assert.ok(scoreFor(three.work.id) > scoreFor(two.work.id),
+    `"${three.work.title}" (3/3) did not score above "${two.work.title}" (2/3) on purpose`)
+})
+
+test('naming one topic can still reach full marks on one hit', () => {
+  // Proportional, not harder. A reader who asked for one thing and got a book
+  // about that thing has been served exactly as well as one who named four and
+  // got all four.
+  const r = rank(c, ReadingBrief.parse({
+    purpose: 'curiosity' as const, mode: 'enjoy' as const, language: 'en' as const,
+    sessionMinutes: 20, intents: [], confirmedTopics: ['solitude'],
+  }))
+  const best = r.decisions.find((d) => d.role === 'strongest-fit')!
+  const purpose = best.components.find((x) => x.signal === 'purpose')!
+  assert.equal(purpose.points, purpose.maxPoints,
+    'a single named topic, fully covered, did not earn the whole purpose term')
+})
