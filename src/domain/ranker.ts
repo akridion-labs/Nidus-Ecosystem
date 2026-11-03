@@ -187,6 +187,101 @@ function confirmedHistoryFit(item: CatalogueItem, brief: ReadingBrief): number {
 }
 
 /* ================================================================== *
+ * 3b. What a rejection actually said.
+ * ================================================================== */
+
+/**
+ * Seven reasons, one behaviour — until now.
+ *
+ * `REJECTION_REASONS` has carried the comment "the same click means different
+ * things" since it was written, and the eligibility gate read only `workId`.
+ * So every reason did exactly one thing: remove that single book. A reader who
+ * said "too difficult" three times got three fewer books and three more at the
+ * same difficulty; "I cannot get it" was answered with another book to buy;
+ * "repetitive" with another book on the same topics.
+ *
+ * That is the sixth time in this project that a signal existed and nothing
+ * consumed it, and it is the most expensive one, because this is the only
+ * feedback loop the reader has inside a session.
+ *
+ * WHAT GENERALISES, AND WHAT DELIBERATELY DOES NOT
+ *
+ * Three reasons say something about OTHER books, and those become constraints.
+ * Four say something about THIS book only, and inventing a generalisation from
+ * them would be the product guessing:
+ *
+ *   too-difficult  -> everything at or above that difficulty is suspect
+ *   unavailable    -> stop leading with books they would have to buy
+ *   repetitive     -> the TOPICS are the problem, not the title
+ *   not-relevant   -> likewise
+ *
+ *   unappealing    -> a judgement about one book. Taste is not a topic.
+ *   already-read   -> belongs in `intents` as COMPLETED, not here
+ *   wrong-language -> the language gate already owns this
+ *
+ * These are demotions, not bans. The reader rejected a different book; this one
+ * has not been refused and may still be the best thing available.
+ */
+export type RejectionSignals = {
+  /** The lowest difficulty the reader has called too hard, if any. */
+  tooHardAt: number | null
+  /** Topics from books rejected as repetitive or not relevant. */
+  tiredTopics: string[]
+  /** They said they could not get one, so stop ranking "to obtain" highly. */
+  cannotObtain: boolean
+}
+
+export const NO_REJECTIONS: RejectionSignals = { tooHardAt: null, tiredTopics: [], cannotObtain: false }
+
+export function rejectionSignals(catalogue: LoadedCatalogue, brief: ReadingBrief): RejectionSignals {
+  let tooHardAt: number | null = null
+  const tiredTopics = new Set<string>()
+  let cannotObtain = false
+
+  for (const r of brief.rejections) {
+    const item = catalogue.items.find((i) => i.work.id === r.workId)
+    if (!item) continue
+    if (r.reason === 'too-difficult') {
+      const d = item.profile.conceptualDifficulty
+      tooHardAt = tooHardAt === null ? d : Math.min(tooHardAt, d)
+    }
+    if (r.reason === 'repetitive' || r.reason === 'not-relevant') {
+      for (const t of item.profile.topics) tiredTopics.add(t)
+    }
+    if (r.reason === 'unavailable') cannotObtain = true
+  }
+  return { tooHardAt, tiredTopics: [...tiredTopics], cannotObtain }
+}
+
+/** One penalty, so a reader cannot be charged three times for one rejection. */
+const REJECTION_PENALTY = 12
+
+function rejectionComponent(
+  item: CatalogueItem,
+  brief: ReadingBrief,
+  signals: RejectionSignals,
+): ScoreComponent | null {
+  const reasons: string[] = []
+  if (signals.tooHardAt !== null && item.profile.conceptualDifficulty >= signals.tooHardAt) {
+    reasons.push('is at least as demanding as one you called too difficult')
+  }
+  const shared = item.profile.topics.filter((t) => signals.tiredTopics.includes(t))
+  if (shared.length > 0) {
+    reasons.push(`covers ${shared.slice(0, 2).map(readable).join(' and ')}, which you have just set aside`)
+  }
+  if (signals.cannotObtain && accessRoute(item, brief) === 'to-obtain') {
+    reasons.push('is another one you would have to buy')
+  }
+  if (reasons.length === 0) return null
+  return {
+    signal: 'you-said-no', points: -REJECTION_PENALTY, maxPoints: REJECTION_PENALTY,
+    // Named out loud. A score that drops for a reason the reader cannot see is
+    // the thing this product exists not to do.
+    text: `Marked down because it ${reasons.join(', and ')}.`,
+  }
+}
+
+/* ================================================================== *
  * 4a. Generic branch — the research report's pilot baseline.
  *     purpose 30 · mode 20 · context 15 · time+difficulty 15 ·
  *     access 10 · confirmed history 10 = 100.
@@ -221,7 +316,7 @@ function contextFit(item: CatalogueItem, brief: ReadingBrief): number {
   return long ? 0.4 : 1
 }
 
-function scoreGeneric(item: CatalogueItem, brief: ReadingBrief) {
+function scoreGeneric(item: CatalogueItem, brief: ReadingBrief, signals: RejectionSignals = NO_REJECTIONS) {
   const route = accessRoute(item, brief)
   // Computed once. It was called twice, once for the score and once to choose
   // the sentence, which is how the two could in principle disagree.
@@ -252,7 +347,11 @@ function scoreGeneric(item: CatalogueItem, brief: ReadingBrief) {
     maxPoints: GENERIC_WEIGHTS[key],
     text,
   }))
-  return { score: round(components.reduce((s, c) => s + c.points, 0)), components }
+  const said = rejectionComponent(item, brief, signals)
+  if (said) components.push(said)
+  // Clamped at 0: a rejection penalty must not produce a negative score, which
+  // would sort below a book with no information about it at all.
+  return { score: round(clamp(components.reduce((s, c) => s + c.points, 0), 0, 100)), components }
 }
 
 /* ================================================================== *
@@ -276,7 +375,7 @@ function stageDistance(target: FounderStage[], stage: FounderStage): number {
   return Math.min(...target.map((t) => Math.abs(STAGE_ORDER.indexOf(t) - at)))
 }
 
-function scoreFounder(item: CatalogueItem, brief: ReadingBrief) {
+function scoreFounder(item: CatalogueItem, brief: ReadingBrief, signals: RejectionSignals = NO_REJECTIONS) {
   const ctx = brief.founderContext!
   const p = item.profile
   const route = accessRoute(item, brief)
@@ -359,6 +458,9 @@ function scoreFounder(item: CatalogueItem, brief: ReadingBrief) {
       text: `You already have ${ctx.activeApplyBooks} Apply book${ctx.activeApplyBooks > 1 ? 's' : ''} open. One at a time works better.`,
     })
   }
+
+  const said = rejectionComponent(item, brief, signals)
+  if (said) components.push(said)
 
   const raw = components.reduce((s, c) => s + c.points, 0)
   return { score: round(clamp(raw, 0, 100)), components }
@@ -585,9 +687,12 @@ export function rank(catalogue: LoadedCatalogue, brief: ReadingBrief): RankResul
   const branch = useFounderBranch ? 'founder' : 'generic'
 
   const { pass, fail } = eligible(catalogue.items, brief)
+  // Once per ranking, not once per book: the signals depend on the brief and
+  // the catalogue, neither of which changes while scoring.
+  const signals = rejectionSignals(catalogue, brief)
   const scored: Scored[] = pass.map((item) => ({
     item,
-    ...(useFounderBranch ? scoreFounder(item, brief) : scoreGeneric(item, brief)),
+    ...(useFounderBranch ? scoreFounder(item, brief, signals) : scoreGeneric(item, brief, signals)),
   }))
 
   const decisions: RecommendationDecision[] = selectRoles(scored).map(({ pick, role }) => {

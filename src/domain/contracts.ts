@@ -172,7 +172,16 @@ export type Edition = z.infer<typeof Edition>
  * string field would become a tagging free-for-all, and a gate that can exclude
  * anything is a gate nobody can predict.
  */
-export const SHAPES = ['relationship-drama', 'suspense', 'horror'] as const
+/**
+ * What a book IS, so a reader can rule it out — not what it is about.
+ *
+ * `horror` was removed on 3 November: nothing in the catalogue carried it, so
+ * the checkbox was guaranteed to change nothing while implying Nidus holds
+ * horror to exclude. shapes.test.ts now fails if any shape offered here is
+ * carried by no book, which is what stopped this being noticed for weeks.
+ * Put it back the day a horror title is stocked.
+ */
+export const SHAPES = ['relationship-drama', 'suspense'] as const
 export const Shape = z.enum(SHAPES)
 export type Shape = z.infer<typeof Shape>
 

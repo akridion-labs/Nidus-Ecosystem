@@ -112,3 +112,16 @@ test('nothing in the catalogue tells a reader to skip treatment or saving', () =
     assert.ok(!ours.includes(claim), `catalogue copy contains "${claim}"`)
   }
 })
+
+test('every shape a reader can tick is carried by at least one book', () => {
+  // The filter was honest in code and decorative in data: the gate worked
+  // perfectly and 92 of 93 rows carried no shape at all, so ticking "books
+  // driven by who wants whom" removed nothing and ticking "horror" could never
+  // remove anything. A filter that cannot change the answer is a promise the
+  // product is not keeping, and this is the check that says so out loud.
+  for (const shape of SHAPES) {
+    const carried = catalogue.items.filter((i) => i.profile.shapes.includes(shape))
+    assert.ok(carried.length > 0,
+      `nothing in the catalogue is tagged "${shape}", so offering it as a filter is decoration`)
+  }
+})

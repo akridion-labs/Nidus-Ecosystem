@@ -78,8 +78,16 @@ export function WhyChoosing() {
                 <span className="font-medium">What it does not show:</span>{' '}
                 <span className="text-muted">{s.limitation}</span>
               </p>
-              <p className="mt-1 text-[14px] text-muted">
-                <a href={s.url} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink">
+              {/* inline-block with padding, not a bare inline link: this anchor
+                  IS the whole paragraph rather than a word inside a sentence,
+                  so WCAG 2.5.8's Inline exception does not cover it and a
+                  17px-tall target is a real AA failure. Found 3 Nov, once the
+                  viewport audit stopped drowning it in false positives. */}
+              <p className="mt-1">
+                <a
+                  href={s.url} target="_blank" rel="noreferrer noopener"
+                  className="inline-block py-1 text-[14px] text-muted underline underline-offset-2 hover:text-ink"
+                >
                   {s.citation}
                 </a>
               </p>

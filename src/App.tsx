@@ -81,7 +81,6 @@ const SHELF_PAGE = 6
 const SHAPE_COPY: Record<Shape, string> = {
   'relationship-drama': 'Books driven by who wants whom',
   suspense: 'Suspense and thrillers',
-  horror: 'Horror',
 }
 
 const REJECTION_COPY: Record<RejectionReason, string> = {

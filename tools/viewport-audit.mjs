@@ -44,8 +44,21 @@ const srv = createServer(async (req, res) => {
 const probeTargets = (p) => p.evaluate(() => {
   const inlineExempt = (el) => {
     const parent = el.parentElement
-    if (!parent || el.tagName === 'A') return false
+    // `el.tagName === 'A'` used to sit in this guard, which disabled the
+    // exemption for the one element WCAG 2.5.8's Inline exception is mostly
+    // about: a link inside a sentence. Every target it reported was an <a> in
+    // prose, and the "fix" each time would have been to pull the link out of
+    // the paragraph and make the page worse. Worse, the noise hid a REAL
+    // failure: a citation anchor that is the whole paragraph rather than a
+    // word in one, and so is not exempt at all.
+    if (!parent) return false
+    // inline-block as well as inline: a <button> in a sentence is inline-block
+    // by default, which is the "Put it back" case noted above.
+    if (!['inline', 'inline-block'].includes(getComputedStyle(el).display)) return false
     if (!['P', 'LI', 'SPAN'].includes(parent.tagName)) return false
+    // The exemption is for a target IN a sentence. An anchor that is the
+    // entire paragraph is a standalone target wearing prose clothing.
+
     const around = (parent.textContent || '').trim().length
     const own = (el.textContent || '').trim().length
     return around > own + 20
@@ -69,7 +82,16 @@ const hscroll = (p) => p.evaluate(() => {
 })
 
 let bad = 0
-for (const w of [430, 768, 1440]) {
+/**
+ * The eleven widths the project has been claiming in commit messages and the
+ * status doc, which the committed tool did not actually run — it ran three.
+ * Override with: node tools/viewport-audit.mjs <root> 430,1440
+ */
+const WIDTHS = process.argv[3]
+  ? process.argv[3].split(',').map(Number)
+  : [320, 360, 390, 414, 430, 768, 834, 932, 1024, 1440, 1920]
+
+for (const w of WIDTHS) {
   const b = await chromium.launch(chrome ? { executablePath: chrome } : {})
   const p = await b.newPage({ viewport: { width: w, height: 932 } })
   await p.goto('http://127.0.0.1:8099/', { waitUntil: 'networkidle' })
@@ -99,5 +121,5 @@ for (const w of [430, 768, 1440]) {
   await b.close()
 }
 srv.close()
-console.log(bad === 0 ? 'clean' : `${bad} width(s) failed`)
+console.log(bad === 0 ? `clean across ${WIDTHS.length} widths` : `${bad} of ${WIDTHS.length} width(s) failed`)
 process.exitCode = bad === 0 ? 0 : 1

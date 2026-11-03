@@ -855,6 +855,11 @@ export const seedProfiles: unknown[] = [
     modes: ['enjoy', 'explore'], topics: ['craft', 'meaning', 'moral-choice'],
     conceptualDifficulty: 3, typicalSessionMinutes: 30, actionability: 0, emotionalIntensity: 3,
     targetStages: [], competencyTags: [], prerequisites: [], tooEarlyStages: [], suggestedArtifact: null,
+    // Roark and Dominique is a central, turbulent thread, not a subplot — and
+    // it includes a scene widely read as rape. A reader who ticked "books
+    // driven by who wants whom" meant this one, whatever else the novel is
+    // about. Tagged 3 Nov; before that the box was ticked and nothing moved.
+    shapes: ['relationship-drama'],
     provenance: { ...EDITORIAL, note: 'A novel written to argue a philosophy. Many readers reject that philosophy; the book is not neutral.' },
   },
   // ---- Fiction and travel profiles, 20 October 2026. ------------------------
