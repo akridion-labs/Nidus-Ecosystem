@@ -13,6 +13,7 @@ import { Wordmark } from './brand/Wordmark.tsx'
 import { Spine } from './brand/Spine.tsx'
 import { ReadingScene } from './brand/ReadingScene.tsx'
 import { WhyChoosing } from './sections/WhyChoosing.tsx'
+import { Pipeline } from './sections/Pipeline.tsx'
 import { authorsIn } from './domain/catalogue.ts'
 import { rank, unlockedBy } from './domain/ranker.ts'
 import { SHELVES, shelfItems } from './domain/shelves.ts'
@@ -904,6 +905,16 @@ export default function App() {
   // else — the trace even shows the book being put back, with the real reason.
   const [reading, setReading] = useState<string[]>([])
   const [finished, setFinished] = useState<string[]>([])
+  /**
+   * Books the reader already has but has not started.
+   *
+   * This was missing entirely, which made `BookIntent.OWNED` a status the
+   * contract defined, the server stored and the ranker scored, with no way for
+   * anyone to set it. The shelf map's whole finding — eleven on mindset, none
+   * on customers — is computed from what you OWN, so without this the balance
+   * strip could never have a number in it.
+   */
+  const [owned, setOwned] = useState<string[]>([])
   const taken = [...reading, ...finished]
   // The book just taken, held so the results area can show a completion rather
   // than silently re-ranking. Without this, choosing a book makes its own card
@@ -997,13 +1008,18 @@ export default function App() {
         intents: [
           ...reading.map((workId) => ({ workId, status: 'READING' as const })),
           ...finished.map((workId) => ({ workId, status: 'COMPLETED' as const })),
+          // Owned last: a book being read or finished should not also be
+          // reported as merely owned, and later entries would win.
+          ...owned
+            .filter((id) => !reading.includes(id) && !finished.includes(id))
+            .map((workId) => ({ workId, status: 'OWNED' as const })),
         ],
         rejections,
         confirmedTopics: focusTopics(readTopics, confirmedTopics),
         avoid,
       }),
     [purpose, mode, language, sessionMinutes, formatPreference, budget, author,
-     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, confirmedTopics, readTopics, avoid],
+     asksFounder, stage, currentDecision, activeApplyBooks, rejections, reading, finished, owned, confirmedTopics, readTopics, avoid],
   )
 
   const result = useMemo(() => rank(catalogue, brief), [brief])
@@ -1681,6 +1697,21 @@ export default function App() {
                           >
                             {taken.includes(d.workId) ? 'Taken — it will not come back' : 'Choose this book'}
                           </button>
+                          {/* Owning a book is a different fact from choosing it,
+                              and the one the balance strip counts. */}
+                          <button
+                            type="button"
+                            onClick={() => setOwned((prev) =>
+                              prev.includes(d.workId) ? prev.filter((id) => id !== d.workId) : [...prev, d.workId])}
+                            aria-pressed={owned.includes(d.workId)}
+                            className={`transition-ui min-h-11 cursor-pointer rounded-xl border px-5 text-[16px] active:scale-[0.97] ${
+                              owned.includes(d.workId)
+                                ? 'border-accent bg-accent-soft text-ink'
+                                : 'border-line text-muted hover:border-accent hover:text-ink'
+                            }`}
+                          >
+                            {owned.includes(d.workId) ? 'On your shelf' : 'I already own it'}
+                          </button>
                           <details>
                             <summary className="transition-ui inline-flex min-h-11 cursor-pointer list-none items-center rounded-xl border border-line px-5 text-[16px] text-muted hover:text-ink">
                               Not right for me
@@ -1777,6 +1808,11 @@ export default function App() {
             )}
           </section>
          </div>
+
+          <Pipeline
+            catalogue={catalogue} brief={brief} result={result}
+            reading={reading} finished={finished} owned={owned}
+          />
 
           <Shelves onPick={applyShelf} brief={brief} />
 
