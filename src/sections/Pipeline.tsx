@@ -29,6 +29,19 @@ import { laneCounts, imbalance } from '../domain/lanes.ts'
  * It is deliberately a sentence and not a chart. "You have eleven on mindset
  * and none on customers" is the finding; a bar chart of it is decoration.
  *
+ * EVIDENCE STATUS — 3 November, after the customer research pass
+ *
+ * **Both halves of this section are assumptions.** Proxy research found real,
+ * repeated demand for an own-it control, for rejection signals that generalise
+ * and for an explained score. It found NOBODY asking for a pipeline view and
+ * NOBODY asking to be told their shelf is unbalanced.
+ *
+ * That is not a reason to delete them — it is a reason not to defend them. The
+ * balance warning in particular is the single most likely thing here to read as
+ * nagging rather than as useful, and the only way to find out is to show it to
+ * someone who is not us. Labelled here so a later reader does not mistake it
+ * for validated work. See Nidus_Customer_Research_2026_11_03.md §2.
+ *
  * WHAT IT REFUSES TO DO
  *
  * No streaks, no completion percentage, no badge for finishing. DR-007 settled
